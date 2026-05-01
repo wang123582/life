@@ -773,6 +773,43 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.task-footer-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.task-mobile-preview {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.task-mobile-preview p {
+  margin: 0;
+  color: #b4bddb;
+}
+
+.task-mobile-actions,
+.mobile-side-toggle {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mobile-side-toggle-button {
+  width: 100%;
+}
+
+.compact-mobile-card {
+  padding-bottom: 14px;
+}
+
 .focus-title {
   margin: 0 0 10px;
   font-size: 20px;
@@ -971,6 +1008,24 @@ button:disabled {
     padding: 18px;
   }
 
+  .panel {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .topbar-copy {
+    gap: 8px;
+  }
+
+  .topbar-tags {
+    gap: 8px;
+  }
+
+  .topbar-tag {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .summary-grid,
   .inline-grid,
   .inline-grid.triple {
@@ -992,7 +1047,10 @@ button:disabled {
   .topbar-actions,
   .task-card-actions,
   .floating-actions,
-  .feishu-actions {
+  .feishu-actions,
+  .task-footer-actions,
+  .task-mobile-actions,
+  .mobile-side-toggle {
     justify-content: stretch;
   }
 
@@ -1003,6 +1061,41 @@ button:disabled {
   .task-index-badge {
     min-width: 34px;
     height: 34px;
+  }
+
+  .task-card {
+    padding: 14px;
+  }
+
+  .task-title {
+    font-size: 17px;
+  }
+
+  .task-meta-row {
+    gap: 6px;
+  }
+
+  .task-meta-chip {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .task-footer > .inline-form,
+  .task-footer > .task-footer-actions,
+  .task-mobile-actions > button {
+    width: 100%;
+  }
+
+  .task-mobile-preview {
+    padding: 10px 12px;
+  }
+
+  .column-side.mobile-hidden {
+    display: none;
+  }
+
+  .focus-strip-time {
+    font-size: 32px;
   }
 
   .floating-timer {

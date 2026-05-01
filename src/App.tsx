@@ -83,6 +83,8 @@ function App() {
   const [stateResponse, setStateResponse] = useState('')
   const [stateResult, setStateResult] = useState<'better' | 'same' | 'worse'>('better')
   const [selectedItemId, setSelectedItemId] = useState<string>('')
+  const [expandedTaskId, setExpandedTaskId] = useState<string>('')
+  const [showMobileTodayExtras, setShowMobileTodayExtras] = useState(false)
   const [stepInputs, setStepInputs] = useState<Record<string, string>>({})
   const [finishOpen, setFinishOpen] = useState(false)
   const [timerCompleted, setTimerCompleted] = useState(true)
@@ -124,6 +126,7 @@ function App() {
   const [lastInteractionAt, setLastInteractionAt] = useState<number>(() => Date.now())
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [isStandalone, setIsStandalone] = useState<boolean>(() => window.matchMedia('(display-mode: standalone)').matches)
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() => window.matchMedia('(max-width: 768px)').matches)
 
   const activeTimer = data.activeTimer
   const remainingSeconds = useTimerRemaining(activeTimer)
@@ -226,6 +229,27 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)')
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsMobileLayout(event.matches)
+    }
+
+    setIsMobileLayout(mediaQuery.matches)
+    mediaQuery.addEventListener('change', handleChange)
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isMobileLayout) {
+      setShowMobileTodayExtras(false)
+      setExpandedTaskId('')
+    }
+  }, [isMobileLayout])
+
+  useEffect(() => {
     const title = activeTimer
       ? `专注中 ${formatSeconds(remainingSeconds)} · ${activeItem?.title ?? 'life'}`
       : `${primaryTodayItem?.title ?? 'life'} · ${primaryStep?.title ?? '先开始今天的一小步'}`
@@ -310,6 +334,11 @@ function App() {
   const startTask = (item: TodayItem) => {
     const firstPendingStep = item.steps.find((step) => !step.isDone)
     actions.startFocusTimer(item.id, firstPendingStep?.id)
+  }
+
+  const toggleTaskExpand = (itemId: string) => {
+    setSelectedItemId(itemId)
+    setExpandedTaskId((prev) => (prev === itemId ? '' : itemId))
   }
 
   const handleAddTaskDefinition = (event: React.FormEvent<HTMLFormElement>) => {
@@ -694,8 +723,12 @@ function App() {
                     const firstPendingStep = item.steps.find((step) => !step.isDone)
                     const stepProgress = getStepProgress(item)
                     const progressPercent = stepProgress.total === 0 ? 0 : Math.round((stepProgress.done / stepProgress.total) * 100)
+                    const isTaskExpanded = !isMobileLayout || expandedTaskId === item.id
                     return (
-                      <article key={item.id} className={item.id === selectedItemId ? 'task-card selected' : 'task-card'}>
+                      <article
+                        key={item.id}
+                        className={item.id === selectedItemId ? `task-card selected ${!isTaskExpanded ? 'compact-mobile-card' : ''}` : `task-card ${!isTaskExpanded ? 'compact-mobile-card' : ''}`}
+                      >
                         <div className="task-card-top">
                           <div className="task-card-heading">
                             <span className="task-index-badge">{String(item.order).padStart(2, '0')}</span>
@@ -704,20 +737,22 @@ function App() {
                               <span className="pill">{item.kind === 'routine' ? '生活任务' : '主动任务'}</span>
                             </button>
                           </div>
-                          <div className="task-card-actions">
-                            <button type="button" className="tiny-button icon-button" onClick={() => actions.moveTodayItem(item.id, -1)}>
-                              ↑
-                            </button>
-                            <button type="button" className="tiny-button icon-button" onClick={() => actions.moveTodayItem(item.id, 1)}>
-                              ↓
-                            </button>
-                            <button type="button" className="tiny-button success-button" onClick={() => actions.toggleTodayItemDone(item.id)}>
-                              {item.isDone ? '取消完成' : '完成'}
-                            </button>
-                            <button type="button" className="tiny-button danger-button" onClick={() => actions.removeTodayItem(item.id)}>
-                              移出今天
-                            </button>
-                          </div>
+                          {isTaskExpanded ? (
+                            <div className="task-card-actions">
+                              <button type="button" className="tiny-button icon-button" onClick={() => actions.moveTodayItem(item.id, -1)}>
+                                ↑
+                              </button>
+                              <button type="button" className="tiny-button icon-button" onClick={() => actions.moveTodayItem(item.id, 1)}>
+                                ↓
+                              </button>
+                              <button type="button" className="tiny-button success-button" onClick={() => actions.toggleTodayItemDone(item.id)}>
+                                {item.isDone ? '取消完成' : '完成'}
+                              </button>
+                              <button type="button" className="tiny-button danger-button" onClick={() => actions.removeTodayItem(item.id)}>
+                                移出今天
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
 
                         <div className="task-meta-row">
@@ -730,7 +765,21 @@ function App() {
                           <span style={{ width: `${progressPercent}%` }} />
                         </div>
 
-                        {item.steps.length > 0 ? (
+                        {isMobileLayout && !isTaskExpanded ? (
+                          <div className="task-mobile-preview">
+                            <p>{firstPendingStep?.title ?? '还没分解下一步，先点展开再写。'}</p>
+                            <div className="task-mobile-actions">
+                              <button type="button" className="ghost-button compact-action-button" onClick={() => toggleTaskExpand(item.id)}>
+                                展开编辑
+                              </button>
+                              <button type="button" className="primary-button compact-action-button" onClick={() => startTask(item)}>
+                                直接开始
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {isTaskExpanded && item.steps.length > 0 ? (
                           <ul className="step-list">
                             {item.steps.map((step) => (
                               <li key={step.id} className={step.isDone ? 'step-item step-item-done' : 'step-item'}>
@@ -762,33 +811,42 @@ function App() {
                               </li>
                             ))}
                           </ul>
-                        ) : (
+                        ) : isTaskExpanded ? (
                           <p className="empty-hint">先给这个任务拆一个最小动作，再开始番茄钟。</p>
-                        )}
+                        ) : null}
 
-                        <div className="task-footer">
-                          <form
-                            className="inline-form"
-                            onSubmit={(event) => {
-                              event.preventDefault()
-                              actions.addStep(item.id, stepInputs[item.id] ?? '')
-                              setStepInputs((prev) => ({ ...prev, [item.id]: '' }))
-                            }}
-                          >
-                            <input
-                              value={stepInputs[item.id] ?? ''}
-                              onChange={(event) => setStepInputs((prev) => ({ ...prev, [item.id]: event.target.value }))}
-                              placeholder="例如：先写标题和第一段"
-                            />
-                            <button type="submit" className="tiny-button step-add-button form-action-button">
-                              分解
-                            </button>
-                          </form>
-                          <button type="button" className="primary-button" onClick={() => startTask(item)}>
-                            开始 25 分钟专注
-                            {firstPendingStep ? ` · ${firstPendingStep.title}` : ''}
-                          </button>
-                        </div>
+                        {isTaskExpanded ? (
+                          <div className="task-footer">
+                            <form
+                              className="inline-form"
+                              onSubmit={(event) => {
+                                event.preventDefault()
+                                actions.addStep(item.id, stepInputs[item.id] ?? '')
+                                setStepInputs((prev) => ({ ...prev, [item.id]: '' }))
+                              }}
+                            >
+                              <input
+                                value={stepInputs[item.id] ?? ''}
+                                onChange={(event) => setStepInputs((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                                placeholder="例如：先写标题和第一段"
+                              />
+                              <button type="submit" className="tiny-button step-add-button form-action-button">
+                                分解
+                              </button>
+                            </form>
+                            <div className="task-footer-actions">
+                              {isMobileLayout ? (
+                                <button type="button" className="ghost-button compact-action-button" onClick={() => setExpandedTaskId('')}>
+                                  收起
+                                </button>
+                              ) : null}
+                              <button type="button" className="primary-button" onClick={() => startTask(item)}>
+                                开始 25 分钟专注
+                                {firstPendingStep ? ` · ${firstPendingStep.title}` : ''}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
                     )
                   })}
@@ -827,7 +885,15 @@ function App() {
               </Section>
             </div>
 
-            <div className="column-side">
+            {isMobileLayout ? (
+              <div className="mobile-side-toggle">
+                <button type="button" className="ghost-button mobile-side-toggle-button" onClick={() => setShowMobileTodayExtras((prev) => !prev)}>
+                  {showMobileTodayExtras ? '收起状态、交流和卡点' : '查看状态、交流和卡点'}
+                </button>
+              </div>
+            ) : null}
+
+            <div className={isMobileLayout && !showMobileTodayExtras ? 'column-side mobile-hidden' : 'column-side'}>
               <Section kicker="Now" title="现在先做" subtitle="右边只留下当前最需要看的几件事。">
                 <div className="compact-stack">
                   <div className="side-summary-card">
