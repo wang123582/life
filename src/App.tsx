@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { difficultyTemplateLabels, encouragementMessages, stateTemplateLabels } from './lib/defaults'
 import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, sendTodayReportToFeishu } from './lib/feishu'
+import { canUseFocusLock, getFocusLockStatus, openFocusLockAccessibilitySettings, saveFocusLockConfig } from './lib/focusLock'
 import { canUseNativeTimer, clearFocusTimerNotification, ensureNativeTimerPermission, scheduleFocusTimerNotification } from './lib/mobileTimer'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
 import { createSyncSpaceId, isSyncEnvReady, syncSetupSql } from './lib/sync'
@@ -126,6 +127,9 @@ function App() {
   const [reviewSaveStatus, setReviewSaveStatus] = useState<'success' | 'error' | ''>('')
   const [nativeTimerStatus, setNativeTimerStatus] = useState<'success' | 'error' | ''>('')
   const [nativeTimerMessage, setNativeTimerMessage] = useState('')
+  const [focusLockStatus, setFocusLockStatus] = useState<'success' | 'error' | ''>('')
+  const [focusLockMessage, setFocusLockMessage] = useState('')
+  const [focusLockServiceEnabled, setFocusLockServiceEnabled] = useState(false)
   const [syncCodeCopied, setSyncCodeCopied] = useState(false)
   const [encouragementIndex, setEncouragementIndex] = useState(0)
   const [contextReminder, setContextReminder] = useState('')
@@ -136,6 +140,7 @@ function App() {
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() => window.matchMedia('(max-width: 768px)').matches)
 
   const activeTimer = data.activeTimer
+  const focusLockAvailable = canUseFocusLock()
   const nativeTimerAvailable = canUseNativeTimer()
   const remainingSeconds = useTimerRemaining(activeTimer)
   const activeItem = useMemo(
@@ -286,6 +291,29 @@ function App() {
       body,
     })
   }, [activeItem, activeStep, activeTimer, data.settings.mobileTimerEnabled, nativeTimerAvailable])
+
+  useEffect(() => {
+    if (!focusLockAvailable) {
+      setFocusLockServiceEnabled(false)
+      return
+    }
+
+    void getFocusLockStatus().then((status) => {
+      setFocusLockServiceEnabled(status.serviceEnabled)
+    })
+  }, [focusLockAvailable])
+
+  useEffect(() => {
+    const isFocusModeActive = Boolean(activeTimer && activeTimer.mode === 'focus')
+    const untilTimestamp = activeTimer ? dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute').valueOf() : 0
+
+    void saveFocusLockConfig({
+      enabled: data.settings.appLockEnabled,
+      active: data.settings.appLockEnabled && data.settings.blockerLevel !== 'light' && isFocusModeActive,
+      untilTimestamp,
+      blockedTargets: data.settings.blockedTargets,
+    })
+  }, [activeTimer, data.settings.appLockEnabled, data.settings.blockedTargets, data.settings.blockerLevel])
 
   useEffect(() => {
     const title = activeTimer
@@ -626,6 +654,26 @@ function App() {
 
     setNativeTimerStatus('success')
     setNativeTimerMessage('已经安排了一条 15 秒后的测试提醒，锁屏也能测。')
+  }
+
+  const handleOpenFocusLockSettings = async () => {
+    await openFocusLockAccessibilitySettings()
+    setFocusLockStatus('success')
+    setFocusLockMessage('已经打开安卓无障碍设置。把 life 的应用锁定服务打开后，再回来点一次“检查应用锁状态”。')
+  }
+
+  const handleCheckFocusLockStatus = async () => {
+    const status = await getFocusLockStatus()
+    setFocusLockServiceEnabled(status.serviceEnabled)
+
+    if (status.serviceEnabled) {
+      setFocusLockStatus('success')
+      setFocusLockMessage('应用锁定服务已经开启。专注时打开黑名单应用，会被拉回 life。')
+      return
+    }
+
+    setFocusLockStatus('error')
+    setFocusLockMessage('还没开启应用锁定服务。先去安卓无障碍设置里打开它。')
   }
 
   const handleCopySyncCode = async () => {
@@ -1369,6 +1417,26 @@ function App() {
                   </button>
                   {nativeTimerMessage ? (
                     <p className={nativeTimerStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{nativeTimerMessage}</p>
+                  ) : null}
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={data.settings.appLockEnabled}
+                      onChange={(event) => actions.updateSettings({ appLockEnabled: event.target.checked })}
+                    />
+                    <span>专注时锁定黑名单应用（安卓）</span>
+                  </label>
+                  <div className="feishu-actions compact-actions-grid">
+                    <button type="button" className="ghost-button" onClick={handleOpenFocusLockSettings}>
+                      打开无障碍设置
+                    </button>
+                    <button type="button" className="ghost-button" onClick={handleCheckFocusLockStatus}>
+                      检查应用锁状态
+                    </button>
+                  </div>
+                  <p className="muted">当前状态：{focusLockAvailable ? (focusLockServiceEnabled ? '应用锁定服务已开启' : '还没开启应用锁定服务') : '只在安卓安装包里可用'}</p>
+                  {focusLockMessage ? (
+                    <p className={focusLockStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{focusLockMessage}</p>
                   ) : null}
                   <label>
                     干预等级

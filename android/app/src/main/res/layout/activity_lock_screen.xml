@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#0B1020">
+
+    <TextView
+        android:id="@+id/lockTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#F5F7FB"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/lockDetail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#B8C2E6"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/lockBackButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="回到 life 继续这轮"
+        android:backgroundTint="#5F75FF"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>

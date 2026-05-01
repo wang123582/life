@@ -134,6 +134,7 @@ export interface AppSettings {
   syncSpaceId: string
   syncDeviceName: string
   mobileTimerEnabled: boolean
+  appLockEnabled: boolean
   feishuWebhookUrl: string
   feishuKeyword: string
   feishuSecret: string

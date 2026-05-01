@@ -162,6 +162,7 @@ export function defaultData(): LifeAppData {
       syncSpaceId: '',
       syncDeviceName: defaultDeviceName(),
       mobileTimerEnabled: true,
+      appLockEnabled: false,
       feishuWebhookUrl: '',
       feishuKeyword: '',
       feishuSecret: '',

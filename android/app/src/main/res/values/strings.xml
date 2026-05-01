@@ -4,4 +4,5 @@
     <string name="title_activity_main">life</string>
     <string name="package_name">com.toe.life</string>
     <string name="custom_url_scheme">com.toe.life</string>
+    <string name="focus_lock_service_description">在专注时段拦住被列入黑名单的应用，把你拉回 life。</string>
 </resources>
