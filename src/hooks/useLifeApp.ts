@@ -291,6 +291,42 @@ export function useLifeApp() {
     })
   }
 
+  const removeTaskDefinition = (taskId: string) => {
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const removedTodayItemIds = new Set<string>()
+
+      const nextDayPlans = Object.fromEntries(
+        Object.entries(next.dayPlans).map(([planKey, plan]) => {
+          const clonedPlan = clonePlan(plan)
+
+          clonedPlan.todayItems = clonedPlan.todayItems
+            .filter((item) => {
+              const shouldRemove = item.sourceTaskId === taskId && !item.isDone
+
+              if (shouldRemove) {
+                removedTodayItemIds.add(item.id)
+              }
+
+              return !shouldRemove
+            })
+            .map((item, index) => ({ ...item, order: index + 1 }))
+
+          return [planKey, clonedPlan]
+        }),
+      ) as LifeAppData['dayPlans']
+
+      const shouldClearActiveTimer = next.activeTimer?.dayItemId ? removedTodayItemIds.has(next.activeTimer.dayItemId) : false
+
+      return stampData({
+        ...next,
+        taskDefs: next.taskDefs.filter((task) => task.id !== taskId),
+        dayPlans: nextDayPlans,
+        activeTimer: shouldClearActiveTimer ? null : next.activeTimer,
+      })
+    })
+  }
+
   const toggleTodayItemDone = (itemId: string) => {
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
@@ -734,6 +770,7 @@ export function useLifeApp() {
       addTaskDefinition,
       quickStartTodayTask,
       addTaskToToday,
+      removeTaskDefinition,
       toggleTodayItemDone,
       removeTodayItem,
       moveTodayItem,

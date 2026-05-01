@@ -497,6 +497,18 @@ function App() {
     setTaskTime('')
   }
 
+  const handleRemoveTaskDefinition = (taskId: string, title: string) => {
+    const confirmed = window.confirm(`要把「${title}」从任务池删除吗？未完成的今日副本也会一起移除。`)
+
+    if (!confirmed) {
+      return
+    }
+
+    actions.removeTaskDefinition(taskId)
+    setFlashTone('warning')
+    setFlashMessage(`已从任务池删除「${title}」。`)
+  }
+
   const handleAddAvoid = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     actions.addAvoidItem(avoidText)
@@ -1392,9 +1404,14 @@ function App() {
                             {task.kind === 'routine' ? `固定生活任务 · ${task.scheduleTime ?? '时间待定'}` : '主动任务'}
                           </p>
                         </div>
-                        <button type="button" className="primary-button" onClick={() => actions.addTaskToToday(task.id)}>
-                          放进今天
-                        </button>
+                        <div className="task-pool-actions">
+                          <button type="button" className="primary-button" onClick={() => actions.addTaskToToday(task.id)}>
+                            放进今天
+                          </button>
+                          <button type="button" className="ghost-button danger-button" onClick={() => handleRemoveTaskDefinition(task.id, task.title)}>
+                            删除
+                          </button>
+                        </div>
                       </article>
                     ))}
                 </div>
