@@ -133,6 +133,7 @@ export interface AppSettings {
   feishuWebhookUrl: string
   feishuKeyword: string
   feishuSecret: string
+  feishuAutoSyncReview: boolean
 }
 
 export interface ActiveTimer {

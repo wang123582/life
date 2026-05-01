@@ -8,3 +8,5 @@ vite.config.js
 vite.config.d.ts
 icon-192.png
 icon-512.png
+.tools
+android/local.properties

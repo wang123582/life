@@ -30,6 +30,12 @@ interface FeishuReportPayload {
   communicationNote: string
 }
 
+interface FeishuConnectionPayload {
+  webhookUrl: string
+  keyword?: string
+  secret?: string
+}
+
 type FeishuTextLine = Array<{ tag: 'text'; text: string }>
 
 function toBase64(buffer: ArrayBuffer): string {
@@ -114,6 +120,46 @@ function buildFeishuBody(payload: FeishuReportPayload) {
   }
 }
 
+function buildConnectionTestBody(payload: FeishuConnectionPayload) {
+  const prefix = payload.keyword?.trim() ? `${payload.keyword!.trim()} ` : ''
+
+  return {
+    msg_type: 'text' as const,
+    content: {
+      text: `${prefix}life 已连接飞书，可以开始同步今天的任务、复盘和困难日志了。`,
+    },
+  }
+}
+
+async function postToFeishu(payload: FeishuConnectionPayload, body: Record<string, unknown>): Promise<void> {
+  const timestamp = String(Math.floor(Date.now() / 1000))
+  const requestBody = payload.secret?.trim()
+    ? {
+        timestamp,
+        sign: await generateSign(payload.secret.trim(), timestamp),
+        ...body,
+      }
+    : body
+
+  const response = await fetch(payload.webhookUrl.trim(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  const result = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(`飞书返回 ${response.status}`)
+  }
+
+  if (result && typeof result === 'object' && 'code' in result && result.code !== 0) {
+    throw new Error(typeof result.msg === 'string' ? result.msg : '飞书同步失败')
+  }
+}
+
 export function buildTodayTimeline(entries: {
   completedSteps: CompletedStepSummary[]
   difficulties: DifficultyRecord[]
@@ -154,32 +200,10 @@ export function getStateLabel(value: StateType | ''): string {
   return stateTemplateLabels[value]
 }
 
+export async function sendFeishuConnectionTest(payload: FeishuConnectionPayload): Promise<void> {
+  await postToFeishu(payload, buildConnectionTestBody(payload))
+}
+
 export async function sendTodayReportToFeishu(payload: FeishuReportPayload): Promise<void> {
-  const timestamp = String(Math.floor(Date.now() / 1000))
-  const body = buildFeishuBody(payload)
-  const requestBody = payload.secret?.trim()
-    ? {
-        timestamp,
-        sign: await generateSign(payload.secret.trim(), timestamp),
-        ...body,
-      }
-    : body
-
-  const response = await fetch(payload.webhookUrl.trim(), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  })
-
-  const result = await response.json().catch(() => null)
-
-  if (!response.ok) {
-    throw new Error(`飞书返回 ${response.status}`)
-  }
-
-  if (result && typeof result === 'object' && 'code' in result && result.code !== 0) {
-    throw new Error(typeof result.msg === 'string' ? result.msg : '飞书同步失败')
-  }
+  await postToFeishu(payload, buildFeishuBody(payload))
 }

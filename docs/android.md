@@ -9,6 +9,13 @@
 - 已生成 `android/` 目录
 - 已配置 `capacitor.config.ts`
 - 已生成 Android 图标与启动页资源
+- 已补上 Android 主题颜色资源与启动后主题切换
+- 已把输入法弹出时的页面适配改为 `adjustResize`，减少表单被键盘顶住的问题
+- 已在项目内准备本地 `JDK 21`（`/.tools/jdk-21`）
+- 也保留了一份本地 `JDK 17`（`/.tools/jdk-17`）作为回退
+- 已在项目内准备本地 Android SDK（`/.tools/android-sdk`）
+- Android 相关脚本会优先使用这个本地 JDK 21，不再依赖系统默认的 Java 11
+- Android 相关脚本也会优先使用这个本地 Android SDK，不再依赖系统全局 `ANDROID_HOME`
 - 已补充以下脚本：
   - `npm run android:sync`
   - `npm run android:open`
@@ -17,18 +24,59 @@
   - `npm run android:apk:release`
   - `npm run android:bundle:release`
 
-## 当前打包阻塞点
+## Java 现在怎么处理
 
-我已经尝试过直接打 Debug APK，但当前环境卡在 **Java 版本**：
+系统默认还是 `Java 11`，但当前这套 Capacitor Android 工程实际要求的是 `Java 21`。
 
-- Android Gradle Plugin 需要 **Java 17**
-- 当前机器只有 **Java 11**
+所以项目内现在已经单独放了：
 
-也就是说：
+- `life/.tools/jdk-21`
+- `life/.tools/jdk-17`（回退）
 
-- 工程已经准备好了
-- 图标和启动页也已经进了 Android 工程
-- 但要真正跑出 APK，还需要把本机 JDK 升到 17
+所以现在这些命令会自动优先使用项目里的 JDK 21：
+
+如果 `JDK 21` 不存在，才会回退到项目里的 `JDK 17`。
+
+- `npm run android:open`
+- `npm run android:run`
+- `npm run android:apk:debug`
+- `npm run android:apk:release`
+- `npm run android:bundle:release`
+
+这样做的好处是：
+
+- 不用改系统全局 Java
+- 不用 sudo
+- 这个项目自己就能把 Android 打包环境带上
+
+## 当前最新状态
+
+- `Web build` 已通过
+- `Capacitor sync android` 已通过
+- 已修掉一轮 Kotlin 标准库重复依赖冲突
+- 已加入项目内本地 Android 仓库代理，专门绕过这台机器当前的 DNS 解析问题
+- `npm run android:apk:debug` 已成功跑通
+- 已成功产出调试安装包：`android/app/build/outputs/apk/debug/app-debug.apk`
+
+换句话说，现在这条链路已经从“有 Android 工程”推进到了“能在当前机器上真正打出 debug APK”。
+
+## Android SDK 现在怎么处理
+
+项目内现在也已经放了一份本地 Android SDK：
+
+- `life/.tools/android-sdk`
+
+并且已经安装了这些关键包：
+
+- `platform-tools`
+- `platforms;android-35`
+- `build-tools;35.0.0`
+
+同时还写入了：
+
+- `android/local.properties`
+
+所以 Gradle 现在能直接找到 SDK，不再卡在 `SDK location not found`。
 
 ## 以后常用的命令
 
@@ -57,7 +105,7 @@ npm run android:run
 前提仍然是：
 
 - Android Studio 已安装
-- Java 17 可用
+- 项目内 JDK 21 / JDK 17 可正常使用
 - Android SDK 可用
 
 ## 打包 APK / AAB 的方式
@@ -94,3 +142,13 @@ npm run android:sync
 ```
 
 然后再去 Android Studio 里运行或打包。
+
+## 这轮额外处理的安卓细节
+
+- 修复了 Android 主题里引用颜色但缺少资源文件的问题
+- 让 Splash 结束后明确切回 App 正常主题，而不是停留在启动主题上
+- 优化了大量输入框场景下的键盘顶起行为，减少输入时被挡住
+- 在项目内放置 JDK 17，并让 Android 命令自动优先使用它
+- 在项目内放置 Android SDK，并让 Gradle 与命令行自动优先使用它
+- 加入了项目内本地 Maven 仓库与 HTTP 代理，专门绕过当前机器的 DNS 解析问题
+- 已打出调试包：`android/app/build/outputs/apk/debug/app-debug.apk`

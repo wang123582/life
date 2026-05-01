@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { difficultyTemplateLabels, encouragementMessages, stateTemplateLabels } from './lib/defaults'
-import { buildTodayTimeline, getStateLabel, sendTodayReportToFeishu } from './lib/feishu'
+import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, sendTodayReportToFeishu } from './lib/feishu'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
 import { useLifeApp } from './hooks/useLifeApp'
 import { useTimerRemaining } from './hooks/useTimerRemaining'
@@ -109,9 +109,15 @@ function App() {
     commonState: dayPlan.review?.commonState ?? '',
     tomorrow: dayPlan.review?.tomorrow ?? '',
   })
+  const [isTestingFeishu, setIsTestingFeishu] = useState(false)
+  const [feishuTestMessage, setFeishuTestMessage] = useState('')
+  const [feishuTestStatus, setFeishuTestStatus] = useState<'success' | 'error' | ''>('')
   const [isSyncingFeishu, setIsSyncingFeishu] = useState(false)
   const [feishuSyncMessage, setFeishuSyncMessage] = useState('')
   const [feishuSyncStatus, setFeishuSyncStatus] = useState<'success' | 'error' | ''>('')
+  const [isSavingReview, setIsSavingReview] = useState(false)
+  const [reviewSaveMessage, setReviewSaveMessage] = useState('')
+  const [reviewSaveStatus, setReviewSaveStatus] = useState<'success' | 'error' | ''>('')
   const [encouragementIndex, setEncouragementIndex] = useState(0)
   const [contextReminder, setContextReminder] = useState('')
   const [lastReminderKey, setLastReminderKey] = useState('')
@@ -381,31 +387,115 @@ function App() {
     })
   }
 
-  const handleSaveReview = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    actions.saveReview(reviewForm)
-  }
-
-  const handleSyncToFeishu = async () => {
+  const syncTodayToFeishu = async (reviewPayload: typeof dayPlan.review) => {
     const webhookUrl = feishuWebhookUrl.trim()
 
     if (!webhookUrl) {
-      setFeishuSyncStatus('error')
-      setFeishuSyncMessage('先填飞书群机器人的 webhook 地址。')
+      throw new Error('先填飞书群机器人的 webhook 地址。')
+    }
+
+    actions.updateSettings({
+      feishuWebhookUrl: webhookUrl,
+      feishuKeyword: feishuKeyword.trim(),
+      feishuSecret: feishuSecret.trim(),
+    })
+
+    await sendTodayReportToFeishu({
+      webhookUrl,
+      keyword: feishuKeyword.trim(),
+      secret: feishuSecret.trim(),
+      dayKey,
+      review: reviewPayload,
+      completedSteps,
+      difficulties: todayDifficultyRecords,
+      focusSessions: todayFocusSessions,
+      commonStateLabel: getStateLabel(reviewPayload?.commonState ?? ''),
+      communicationDone: dayPlan.communicationDone,
+      communicationNote,
+    })
+  }
+
+  const handleSaveReview = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const updatedAt = new Date().toISOString()
+    const savedReview = {
+      ...reviewForm,
+      updatedAt,
+    }
+
+    setIsSavingReview(true)
+    setReviewSaveStatus('')
+    setReviewSaveMessage('')
+    actions.saveReview(reviewForm)
+
+    if (!data.settings.feishuAutoSyncReview) {
+      setReviewSaveStatus('success')
+      setReviewSaveMessage('已保存今日复盘。')
+      setIsSavingReview(false)
       return
     }
 
+    try {
+      await syncTodayToFeishu(savedReview)
+      setReviewSaveStatus('success')
+      setReviewSaveMessage('已保存今日复盘，并自动同步到飞书。')
+      setFeishuSyncStatus('success')
+      setFeishuSyncMessage('已把今天总结、完成步骤和困难日志发到飞书。')
+    } catch (error) {
+      setReviewSaveStatus('error')
+      setReviewSaveMessage(`复盘已保存，但飞书同步失败：${error instanceof Error ? error.message : '请稍后再试。'}`)
+      setFeishuSyncStatus('error')
+      setFeishuSyncMessage(error instanceof Error ? error.message : '同步飞书失败。')
+    } finally {
+      setIsSavingReview(false)
+    }
+  }
+
+  const handleTestFeishuConnection = async () => {
+    const webhookUrl = feishuWebhookUrl.trim()
+    const keyword = feishuKeyword.trim()
+    const secret = feishuSecret.trim()
+
+    if (!webhookUrl) {
+      setFeishuTestStatus('error')
+      setFeishuTestMessage('先填飞书群机器人的 webhook 地址。')
+      return
+    }
+
+    setIsTestingFeishu(true)
+    setFeishuTestStatus('')
+    setFeishuTestMessage('')
+
+    try {
+      actions.updateSettings({
+        feishuWebhookUrl: webhookUrl,
+        feishuKeyword: keyword,
+        feishuSecret: secret,
+      })
+
+      await sendFeishuConnectionTest({
+        webhookUrl,
+        keyword,
+        secret,
+      })
+
+      setFeishuTestStatus('success')
+      setFeishuTestMessage('飞书连接成功，机器人已经收到一条测试消息。')
+    } catch (error) {
+      setFeishuTestStatus('error')
+      setFeishuTestMessage(error instanceof Error ? error.message : '飞书连接失败。')
+    } finally {
+      setIsTestingFeishu(false)
+    }
+  }
+
+  const handleSyncToFeishu = async () => {
     setIsSyncingFeishu(true)
     setFeishuSyncStatus('')
     setFeishuSyncMessage('')
 
     try {
-      actions.updateSettings({
-        feishuWebhookUrl: webhookUrl,
-        feishuKeyword: feishuKeyword.trim(),
-        feishuSecret: feishuSecret.trim(),
-      })
-
       const reviewPayload = reviewForm.wins || reviewForm.slips || reviewForm.commonState || reviewForm.tomorrow
         ? {
             ...reviewForm,
@@ -413,19 +503,7 @@ function App() {
           }
         : dayPlan.review
 
-      await sendTodayReportToFeishu({
-        webhookUrl,
-        keyword: feishuKeyword.trim(),
-        secret: feishuSecret.trim(),
-        dayKey,
-        review: reviewPayload,
-        completedSteps,
-        difficulties: todayDifficultyRecords,
-        focusSessions: todayFocusSessions,
-        commonStateLabel: getStateLabel(reviewForm.commonState),
-        communicationDone: dayPlan.communicationDone,
-        communicationNote,
-      })
+      await syncTodayToFeishu(reviewPayload)
 
       setFeishuSyncStatus('success')
       setFeishuSyncMessage('已把今天总结、完成步骤和困难日志发到飞书。')
@@ -1070,6 +1148,25 @@ function App() {
                       placeholder="如果机器人开启签名校验，就填这里"
                     />
                   </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={data.settings.feishuAutoSyncReview}
+                      onChange={(event) => actions.updateSettings({ feishuAutoSyncReview: event.target.checked })}
+                    />
+                    <span>保存复盘后自动同步到飞书</span>
+                  </label>
+                  <div className="feishu-actions">
+                    <button type="button" className="primary-button" onClick={handleTestFeishuConnection} disabled={isTestingFeishu}>
+                      {isTestingFeishu ? '正在测试连接…' : '测试飞书连接'}
+                    </button>
+                    <button type="button" className="ghost-button" onClick={handleSaveTemplates}>
+                      保存飞书配置
+                    </button>
+                  </div>
+                  {feishuTestMessage ? (
+                    <p className={feishuTestStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{feishuTestMessage}</p>
+                  ) : null}
                   <p className="muted">飞书官方更推荐服务端调用，但你这个项目是自用型 Web 第一版，所以这里先做成直连机器人 webhook。</p>
                 </div>
               </Section>
@@ -1120,9 +1217,16 @@ function App() {
                       onChange={(event) => setReviewForm((prev) => ({ ...prev, tomorrow: event.target.value }))}
                     />
                   </label>
-                  <button type="submit" className="primary-button">
-                    保存今日复盘
+                  <button type="submit" className="primary-button" disabled={isSavingReview}>
+                    {isSavingReview
+                      ? '正在保存并同步…'
+                      : data.settings.feishuAutoSyncReview
+                        ? '保存今日复盘并自动同步'
+                        : '保存今日复盘'}
                   </button>
+                  {reviewSaveMessage ? (
+                    <p className={reviewSaveStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{reviewSaveMessage}</p>
+                  ) : null}
                 </form>
               </Section>
             </div>

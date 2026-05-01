@@ -813,6 +813,12 @@ button:disabled {
   gap: 8px;
 }
 
+.feishu-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .floating-timer {
   position: fixed;
   right: 24px;
@@ -985,7 +991,8 @@ button:disabled {
 
   .topbar-actions,
   .task-card-actions,
-  .floating-actions {
+  .floating-actions,
+  .feishu-actions {
     justify-content: stretch;
   }
 

@@ -8,11 +8,11 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
-    "android:open": "npx cap open android",
-    "android:run": "npx cap run android",
-    "android:apk:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
-    "android:apk:release": "npm run android:sync && cd android && ./gradlew assembleRelease",
-    "android:bundle:release": "npm run android:sync && cd android && ./gradlew bundleRelease"
+    "android:open": "./scripts/run-with-local-jdk17.sh npx cap open android",
+    "android:run": "npm run android:sync && ./scripts/run-with-local-jdk17.sh npx cap run android",
+    "android:apk:debug": "npm run android:sync && ./scripts/android-gradlew.sh assembleDebug",
+    "android:apk:release": "npm run android:sync && ./scripts/android-gradlew.sh assembleRelease",
+    "android:bundle:release": "npm run android:sync && ./scripts/android-gradlew.sh bundleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

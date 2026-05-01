@@ -9,8 +9,33 @@ export function loadData(): LifeAppData {
       return defaultData()
     }
 
-    const parsed = JSON.parse(raw) as LifeAppData
-    return ensureDayPlan(parsed)
+    const fallback = defaultData()
+    const parsed = JSON.parse(raw) as Partial<LifeAppData>
+
+    return ensureDayPlan({
+      ...fallback,
+      ...parsed,
+      taskDefs: parsed.taskDefs ?? fallback.taskDefs,
+      ruleDefs: parsed.ruleDefs ?? fallback.ruleDefs,
+      dayPlans: parsed.dayPlans ?? fallback.dayPlans,
+      difficultyRecords: parsed.difficultyRecords ?? fallback.difficultyRecords,
+      stateRecords: parsed.stateRecords ?? fallback.stateRecords,
+      focusSessions: parsed.focusSessions ?? fallback.focusSessions,
+      relaxWindows: parsed.relaxWindows ?? fallback.relaxWindows,
+      dailyTemplate: {
+        ...fallback.dailyTemplate,
+        ...parsed.dailyTemplate,
+      },
+      weeklyTemplate: {
+        ...fallback.weeklyTemplate,
+        ...parsed.weeklyTemplate,
+      },
+      settings: {
+        ...fallback.settings,
+        ...parsed.settings,
+      },
+      activeTimer: parsed.activeTimer ?? fallback.activeTimer,
+    })
   } catch {
     return defaultData()
   }

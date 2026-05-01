@@ -147,6 +147,7 @@ export function defaultData(): LifeAppData {
       feishuWebhookUrl: '',
       feishuKeyword: '',
       feishuSecret: '',
+      feishuAutoSyncReview: false,
     },
     activeTimer: null,
   }

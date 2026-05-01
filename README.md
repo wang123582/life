@@ -874,6 +874,7 @@
 - 今日不做清单
 - 与人交流提醒
 - 放松窗口解锁
+- 飞书机器人 webhook 连接与同步
 - 日 / 周模板
 - 晚间复盘
 
@@ -891,6 +892,9 @@
 - 已接入 `Capacitor`
 - 已生成 `android/` 原生工程
 - 已生成 Android 图标与启动页资源
+- 已补上 Android 主题色资源、启动后主题切换和输入法适配
+- 已在项目内准备本地 `JDK 21`（并保留 `JDK 17` 回退），Android 相关命令会自动优先使用它
+- 已在项目内准备本地 Android SDK，Gradle 不再依赖系统全局 `ANDROID_HOME`
 - 现有页面可以直接复用为 Android App 的界面层
 - 已补充 Android 常用脚本：
 	- `npm run android:sync`
@@ -908,11 +912,36 @@
 - `src/hooks/useLifeApp.ts`：本地数据与主要业务动作
 - `src/hooks/useTimerRemaining.ts`：番茄钟剩余时间计算
 - `src/lib/defaults.ts`：默认模板、默认任务、鼓励文案
+- `src/lib/feishu.ts`：飞书机器人消息生成、测试连接与日报同步
 - `src/types.ts`：数据结构定义
 - `docs/PRD.md`：正式 PRD 骨架
 - `docs/pages.md`：页面原型说明
 - `docs/data-api.md`：数据模型与 API 草案
 - `docs/android.md`：Android 封装与打包说明
+
+### 飞书现在怎么接
+
+现在已经支持直接连接飞书群机器人 webhook。
+
+使用方式：
+
+1. 去飞书群里创建机器人，拿到 webhook 地址
+2. 在应用的 `模板` 页找到 `飞书同步`
+3. 填入：
+	- webhook 地址
+	- 关键词（如果机器人设置了关键词）
+	- 签名密钥（如果开启了签名校验）
+4. 点 `测试飞书连接`
+5. 测试通过后，去 `复盘` 页点 `同步今天日志到飞书`
+
+当前同步内容包括：
+
+- 今天总结
+- 明天第一步
+- 完成的步骤
+- 困难日志
+- 专注记录
+- 今天是否有真实交流
 
 ### 如何运行
 
