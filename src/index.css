@@ -850,6 +850,45 @@ button:disabled {
   gap: 8px;
 }
 
+.sync-summary-card {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(110, 132, 255, 0.16);
+  background: linear-gradient(135deg, rgba(110, 132, 255, 0.14), rgba(88, 205, 170, 0.08));
+}
+
+.sync-summary-card strong {
+  display: block;
+  font-size: 18px;
+}
+
+.sync-summary-card p {
+  margin: 8px 0 0;
+  color: #c7d0ee;
+}
+
+.compact-bullet-list {
+  gap: 8px;
+  padding-left: 18px;
+}
+
+.info-details {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 12px 14px;
+}
+
+.info-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #dfe6ff;
+}
+
+.info-details[open] summary {
+  margin-bottom: 10px;
+}
+
 .feishu-actions {
   display: flex;
   gap: 10px;

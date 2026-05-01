@@ -126,6 +126,7 @@ function App() {
   const [reviewSaveStatus, setReviewSaveStatus] = useState<'success' | 'error' | ''>('')
   const [nativeTimerStatus, setNativeTimerStatus] = useState<'success' | 'error' | ''>('')
   const [nativeTimerMessage, setNativeTimerMessage] = useState('')
+  const [syncCodeCopied, setSyncCodeCopied] = useState(false)
   const [encouragementIndex, setEncouragementIndex] = useState(0)
   const [contextReminder, setContextReminder] = useState('')
   const [lastReminderKey, setLastReminderKey] = useState('')
@@ -603,6 +604,16 @@ function App() {
 
     setNativeTimerStatus('error')
     setNativeTimerMessage('没有拿到手机提醒权限，计时仍然只能停留在应用页面里。')
+  }
+
+  const handleCopySyncCode = async () => {
+    if (!syncSpaceId.trim()) {
+      return
+    }
+
+    await navigator.clipboard.writeText(syncSpaceId.trim().toUpperCase())
+    setSyncCodeCopied(true)
+    window.setTimeout(() => setSyncCodeCopied(false), 2000)
   }
 
   const handleSyncToFeishu = async () => {
@@ -1238,6 +1249,21 @@ function App() {
             <div className="column-side">
               <Section title="设备 / 同步 / 提醒" subtitle="把跨端同步、手机计时和干预放在一个地方，少一点分散设置。">
                 <div className="stack-form">
+                  <div className="sync-summary-card">
+                    <div>
+                      <span className="muted-label">当前同步状态</span>
+                      <strong>
+                        {!sync.envReady ? '还没接上 Supabase' : data.settings.syncEnabled ? '已准备同步' : '同步未开启'}
+                      </strong>
+                    </div>
+                    <p>
+                      {!sync.envReady
+                        ? '先把 Supabase 地址和 key 配好。'
+                        : data.settings.syncEnabled
+                          ? '手机和电脑填同一个同步空间码，就会共用一份数据。'
+                          : '把同步开关打开后，这台设备才会开始连云端。'}
+                    </p>
+                  </div>
                   <label>
                     这台设备叫什么
                     <input value={syncDeviceName} onChange={(event) => setSyncDeviceName(event.target.value)} placeholder="例如：我的手机 / 家里电脑" />
@@ -1258,6 +1284,9 @@ function App() {
                     <button type="button" className="ghost-button" onClick={handleCreateSyncSpace}>
                       生成同步码
                     </button>
+                    <button type="button" className="ghost-button" onClick={handleCopySyncCode} disabled={!syncSpaceId.trim()}>
+                      {syncCodeCopied ? '已复制同步码' : '复制同步码'}
+                    </button>
                     <button type="button" className="ghost-button" onClick={handlePullCloud}>
                       从云端拉下来
                     </button>
@@ -1268,6 +1297,11 @@ function App() {
                   {sync.message ? (
                     <p className={sync.status === 'error' ? 'sync-status error' : 'sync-status success'}>{sync.message}</p>
                   ) : null}
+                  <ul className="bullet-list compact-bullet-list">
+                    <li>第一次用：先在一台设备上生成同步码，再去另一台填同一个码。</li>
+                    <li>先点“上传这台设备数据”，再到另一台点“从云端拉下来”。</li>
+                    <li>如果你主要在手机上用，就把设备名称写成“手机”，排查起来更清楚。</li>
+                  </ul>
                   {!isSyncEnvReady() ? (
                     <p className="sync-status error">跨端同步已经接进去了，但还要先把 `.env` 里的 Supabase 地址和 key 填上。</p>
                   ) : null}
@@ -1308,8 +1342,11 @@ function App() {
                     />
                     <span>开启鼓励提醒</span>
                   </label>
-                  <p className="muted">Supabase 里执行这段 SQL 后，同步才会真正可用：</p>
-                  <pre className="code-block">{syncSetupSql}</pre>
+                  <details className="info-details">
+                    <summary>展开 Supabase 建表 SQL</summary>
+                    <p className="muted">Supabase 里执行这段 SQL 后，同步才会真正可用：</p>
+                    <pre className="code-block">{syncSetupSql}</pre>
+                  </details>
                 </div>
               </Section>
 

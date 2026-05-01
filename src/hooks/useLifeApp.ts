@@ -122,10 +122,14 @@ export function useLifeApp() {
 
   const pullFromCloud = async (source: 'manual' | 'auto' = 'manual') => {
     if (!safeData.settings.syncSpaceId.trim()) {
+      setSyncStatus('error')
+      setSyncMessage('先填同步空间码。')
       throw new Error('先填同步空间码。')
     }
 
     if (!isSyncEnvReady()) {
+      setSyncStatus('error')
+      setSyncMessage('还没配置 Supabase。先把 .env 里的地址和 key 填上。')
       throw new Error('还没配置 Supabase。先把 .env 里的地址和 key 填上。')
     }
 
@@ -160,10 +164,14 @@ export function useLifeApp() {
     const currentData = latestDataRef.current
 
     if (!currentData.settings.syncSpaceId.trim()) {
+      setSyncStatus('error')
+      setSyncMessage('先填同步空间码。')
       throw new Error('先填同步空间码。')
     }
 
     if (!isSyncEnvReady()) {
+      setSyncStatus('error')
+      setSyncMessage('还没配置 Supabase。先把 .env 里的地址和 key 填上。')
       throw new Error('还没配置 Supabase。先把 .env 里的地址和 key 填上。')
     }
 
