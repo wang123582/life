@@ -894,6 +894,16 @@ button:disabled {
   margin-bottom: 10px;
 }
 
+.details-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.compact-chip-list {
+  margin-top: 12px;
+}
+
 .feishu-actions {
   display: flex;
   gap: 10px;

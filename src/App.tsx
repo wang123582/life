@@ -131,6 +131,7 @@ function App() {
   const [focusLockMessage, setFocusLockMessage] = useState('')
   const [focusLockServiceEnabled, setFocusLockServiceEnabled] = useState(false)
   const [syncCodeCopied, setSyncCodeCopied] = useState(false)
+  const [syncSqlCopied, setSyncSqlCopied] = useState(false)
   const [encouragementIndex, setEncouragementIndex] = useState(0)
   const [contextReminder, setContextReminder] = useState('')
   const [lastReminderKey, setLastReminderKey] = useState('')
@@ -684,6 +685,12 @@ function App() {
     await navigator.clipboard.writeText(syncSpaceId.trim().toUpperCase())
     setSyncCodeCopied(true)
     window.setTimeout(() => setSyncCodeCopied(false), 2000)
+  }
+
+  const handleCopySyncSql = async () => {
+    await navigator.clipboard.writeText(syncSetupSql)
+    setSyncSqlCopied(true)
+    window.setTimeout(() => setSyncSqlCopied(false), 2000)
   }
 
   const handleSyncToFeishu = async () => {
@@ -1438,6 +1445,10 @@ function App() {
                   {focusLockMessage ? (
                     <p className={focusLockStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{focusLockMessage}</p>
                   ) : null}
+                  <ul className="bullet-list compact-bullet-list">
+                    <li>测试应用锁定时，先开始一轮专注，再去点开黑名单应用。</li>
+                    <li>如果没被拦住，先检查无障碍服务状态，再确认黑名单里填的是应用名或包名。</li>
+                  </ul>
                   <label>
                     干预等级
                     <select
@@ -1449,10 +1460,6 @@ function App() {
                       <option value="hard">硬阻断（文字上先约束）</option>
                     </select>
                   </label>
-                  <label>
-                    需要重点防的应用 / 网站（每行一项）
-                    <textarea rows={6} value={blockedTargets} onChange={(event) => setBlockedTargets(event.target.value)} />
-                  </label>
                   <label className="checkbox-row">
                     <input
                       type="checkbox"
@@ -1463,19 +1470,28 @@ function App() {
                   </label>
                   <details className="info-details">
                     <summary>展开 Supabase 建表 SQL</summary>
+                    <div className="details-actions">
+                      <button type="button" className="ghost-button compact-action-button" onClick={handleCopySyncSql}>
+                        {syncSqlCopied ? '已复制 SQL' : '复制 SQL'}
+                      </button>
+                    </div>
                     <p className="muted">Supabase 里执行这段 SQL 后，同步才会真正可用：</p>
                     <pre className="code-block">{syncSetupSql}</pre>
                   </details>
-                </div>
-              </Section>
-
-              <Section title="专注黑名单" subtitle="专注时段请先别碰这些。页面先展示清楚，不额外塞更多操作。">
-                <div className="chip-list">
-                  {data.settings.blockedTargets.map((target) => (
-                    <span key={target} className="chip warning">
-                      {target}
-                    </span>
-                  ))}
+                  <details className="info-details">
+                    <summary>展开黑名单和干预细节</summary>
+                    <label>
+                      需要重点防的应用 / 网站（每行一项）
+                      <textarea rows={5} value={blockedTargets} onChange={(event) => setBlockedTargets(event.target.value)} />
+                    </label>
+                    <div className="chip-list compact-chip-list">
+                      {data.settings.blockedTargets.map((target) => (
+                        <span key={target} className="chip warning">
+                          {target}
+                        </span>
+                      ))}
+                    </div>
+                  </details>
                 </div>
               </Section>
 
