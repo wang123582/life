@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { difficultyTemplateLabels, encouragementMessages, stateTemplateLabels } from './lib/defaults'
+import { buildTodayTimeline, getStateLabel, sendTodayReportToFeishu } from './lib/feishu'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
 import { useLifeApp } from './hooks/useLifeApp'
 import { useTimerRemaining } from './hooks/useTimerRemaining'
@@ -26,12 +27,26 @@ function splitLines(value: string): string[] {
     .filter(Boolean)
 }
 
+function getStepProgress(item: TodayItem) {
+  const total = item.steps.length
+  const done = item.steps.filter((step) => step.isDone).length
+  return { total, done }
+}
+
+function getTaskStatusText(item: TodayItem) {
+  if (item.isDone) return '已完成'
+  if (item.steps.length === 0) return '待拆下一步'
+  return '进行中'
+}
+
 function Section({
+  kicker,
   title,
   subtitle,
   actions,
   children,
 }: {
+  kicker?: string
   title: string
   subtitle?: string
   actions?: React.ReactNode
@@ -41,6 +56,7 @@ function Section({
     <section className="panel">
       <div className="panel-header">
         <div>
+          {kicker ? <span className="section-kicker">{kicker}</span> : null}
           <h2>{title}</h2>
           {subtitle ? <p>{subtitle}</p> : null}
         </div>
@@ -84,12 +100,18 @@ function App() {
   const [weeklyCommunicationGoal, setWeeklyCommunicationGoal] = useState(data.weeklyTemplate.communicationGoal)
   const [weeklyRestPlan, setWeeklyRestPlan] = useState(data.weeklyTemplate.restPlan)
   const [blockedTargets, setBlockedTargets] = useState(data.settings.blockedTargets.join('\n'))
+  const [feishuWebhookUrl, setFeishuWebhookUrl] = useState(data.settings.feishuWebhookUrl)
+  const [feishuKeyword, setFeishuKeyword] = useState(data.settings.feishuKeyword)
+  const [feishuSecret, setFeishuSecret] = useState(data.settings.feishuSecret)
   const [reviewForm, setReviewForm] = useState<ReviewInput>({
     wins: dayPlan.review?.wins ?? '',
     slips: dayPlan.review?.slips ?? '',
     commonState: dayPlan.review?.commonState ?? '',
     tomorrow: dayPlan.review?.tomorrow ?? '',
   })
+  const [isSyncingFeishu, setIsSyncingFeishu] = useState(false)
+  const [feishuSyncMessage, setFeishuSyncMessage] = useState('')
+  const [feishuSyncStatus, setFeishuSyncStatus] = useState<'success' | 'error' | ''>('')
   const [encouragementIndex, setEncouragementIndex] = useState(0)
   const [contextReminder, setContextReminder] = useState('')
   const [lastReminderKey, setLastReminderKey] = useState('')
@@ -112,6 +134,10 @@ function App() {
   const primaryAvoid = dayPlan.avoidItems.find((item) => !item.isDone)?.text ?? data.ruleDefs.find((rule) => rule.type === 'avoid')?.text
   const primaryRule = data.ruleDefs.find((rule) => rule.type === 'do')?.text
   const nextRoutine = dayPlan.todayItems.find((item) => item.kind === 'routine' && !item.isDone)
+  const primaryStepLabel = primaryStep?.title ?? '先拆一个最小动作'
+  const activeTimerRange = activeTimer
+    ? `${dayjs(activeTimer.startedAt).format('HH:mm')} - ${dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute').format('HH:mm')}`
+    : ''
 
   useEffect(() => {
     setCommunicationNote(dayPlan.communicationNote)
@@ -125,6 +151,12 @@ function App() {
       tomorrow: dayPlan.review?.tomorrow ?? '',
     })
   }, [dayPlan.review])
+
+  useEffect(() => {
+    setFeishuWebhookUrl(data.settings.feishuWebhookUrl)
+    setFeishuKeyword(data.settings.feishuKeyword)
+    setFeishuSecret(data.settings.feishuSecret)
+  }, [data.settings.feishuWebhookUrl, data.settings.feishuKeyword, data.settings.feishuSecret])
 
   useEffect(() => {
     const firstPendingItem = pendingTodayItems[0]?.id ?? dayPlan.todayItems[0]?.id ?? ''
@@ -251,6 +283,23 @@ function App() {
   }
 
   const selectedItem = dayPlan.todayItems.find((item) => item.id === selectedItemId) ?? dayPlan.todayItems[0]
+  const completedSteps = useMemo(
+    () =>
+      dayPlan.todayItems.flatMap((item) =>
+        item.steps
+          .filter((step) => step.isDone)
+          .map((step) => ({
+            taskTitle: item.title,
+            stepTitle: step.title,
+            completedAt: step.completedAt,
+          })),
+      ),
+    [dayPlan.todayItems],
+  )
+  const todayTimeline = useMemo(
+    () => buildTodayTimeline({ completedSteps, difficulties: todayDifficultyRecords, focusSessions: todayFocusSessions }).slice(0, 12),
+    [completedSteps, todayDifficultyRecords, todayFocusSessions],
+  )
 
   const startTask = (item: TodayItem) => {
     const firstPendingStep = item.steps.find((step) => !step.isDone)
@@ -285,6 +334,13 @@ function App() {
 
   const handleFinishTimer = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const previousScrollTop = window.scrollY
+    const activeElement = document.activeElement
+
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur()
+    }
+
     actions.finishTimer({
       completed: timerCompleted,
       markStepDone,
@@ -297,6 +353,10 @@ function App() {
     setDifficultyNote('')
     setNextAction('')
     setMarkStepDone(true)
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: previousScrollTop, behavior: 'auto' })
+    })
   }
 
   const handleSaveTemplates = () => {
@@ -315,12 +375,66 @@ function App() {
     })
     actions.updateSettings({
       blockedTargets: splitLines(blockedTargets),
+      feishuWebhookUrl: feishuWebhookUrl.trim(),
+      feishuKeyword: feishuKeyword.trim(),
+      feishuSecret: feishuSecret.trim(),
     })
   }
 
   const handleSaveReview = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     actions.saveReview(reviewForm)
+  }
+
+  const handleSyncToFeishu = async () => {
+    const webhookUrl = feishuWebhookUrl.trim()
+
+    if (!webhookUrl) {
+      setFeishuSyncStatus('error')
+      setFeishuSyncMessage('先填飞书群机器人的 webhook 地址。')
+      return
+    }
+
+    setIsSyncingFeishu(true)
+    setFeishuSyncStatus('')
+    setFeishuSyncMessage('')
+
+    try {
+      actions.updateSettings({
+        feishuWebhookUrl: webhookUrl,
+        feishuKeyword: feishuKeyword.trim(),
+        feishuSecret: feishuSecret.trim(),
+      })
+
+      const reviewPayload = reviewForm.wins || reviewForm.slips || reviewForm.commonState || reviewForm.tomorrow
+        ? {
+            ...reviewForm,
+            updatedAt: dayPlan.review?.updatedAt ?? new Date().toISOString(),
+          }
+        : dayPlan.review
+
+      await sendTodayReportToFeishu({
+        webhookUrl,
+        keyword: feishuKeyword.trim(),
+        secret: feishuSecret.trim(),
+        dayKey,
+        review: reviewPayload,
+        completedSteps,
+        difficulties: todayDifficultyRecords,
+        focusSessions: todayFocusSessions,
+        commonStateLabel: getStateLabel(reviewForm.commonState),
+        communicationDone: dayPlan.communicationDone,
+        communicationNote,
+      })
+
+      setFeishuSyncStatus('success')
+      setFeishuSyncMessage('已把今天总结、完成步骤和困难日志发到飞书。')
+    } catch (error) {
+      setFeishuSyncStatus('error')
+      setFeishuSyncMessage(error instanceof Error ? error.message : '同步飞书失败。')
+    } finally {
+      setIsSyncingFeishu(false)
+    }
   }
 
   const askNotificationPermission = async () => {
@@ -373,9 +487,15 @@ function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div>
+          <div className="topbar-copy">
+            <span className="section-kicker">今日主线</span>
             <h1>给自己一个正常的一天</h1>
             <p>先列今天要做的，再拆出最小下一步。卡住了，就把卡点继续拆掉。</p>
+            <div className="topbar-tags">
+              <span className="topbar-tag">现在最重要：{primaryTodayItem?.title ?? '先挑一个任务'}</span>
+              <span className="topbar-tag">下一步：{primaryStepLabel}</span>
+              {primaryAvoid ? <span className="topbar-tag warning">不做：{primaryAvoid}</span> : null}
+            </div>
           </div>
           <div className="topbar-actions">
             {!isStandalone && installPromptEvent ? (
@@ -391,6 +511,20 @@ function App() {
             </button>
           </div>
         </header>
+
+        {activeTimer ? (
+          <div className="focus-strip">
+            <div>
+              <span className="muted-label">专注已经开始</span>
+              <strong>
+                正在做：{activeItem?.title ?? '当前任务'}
+                {activeStep ? ` · ${activeStep.title}` : ''}
+              </strong>
+              <p>现在是专注中，不用急着结束；先把这一小轮做完。{activeTimerRange ? `这轮时间：${activeTimerRange}` : ''}</p>
+            </div>
+            <div className="focus-strip-time">{formatSeconds(remainingSeconds)}</div>
+          </div>
+        ) : null}
 
         {contextReminder ? (
           <div className="context-reminder">
@@ -418,13 +552,17 @@ function App() {
         {activeTab === 'today' ? (
           <div className="page-grid">
             <div className="column-main">
-              <Section title="今天的板子" subtitle="今天最重要的三件事、生活节奏和与人的联系，都放在这里。">
+              <Section
+                kicker="Overview"
+                title="今天必须做的事情"
+                subtitle="今天必须做的、必须守住的、必须记得去生活的，都放在这里。"
+              >
                 <div className="goal-banner">
                   <div>
                     <span className="muted-label">当前目标锚点</span>
                     <h3>{primaryTodayItem?.title ?? data.weeklyTemplate.directions[0] ?? '先从任务池挑一个任务放进今天'}</h3>
                     <p>
-                      下一步：{primaryStep?.title ?? '先拆一个最小动作'}
+                      下一步：{primaryStepLabel}
                       {primaryAvoid ? ` · 当前边界：${primaryAvoid}` : ''}
                     </p>
                     {primaryRule ? <p>长期提醒：{primaryRule}</p> : null}
@@ -468,6 +606,7 @@ function App() {
               </Section>
 
               <Section
+                kicker="Execution"
                 title="今天要做什么"
                 subtitle="从任务池拖进今天后，给每个任务至少拆一个最小动作。"
                 actions={<span className="muted-label">推荐保留 {data.dailyTemplate.topTaskSlots} 个核心任务</span>}
@@ -475,47 +614,72 @@ function App() {
                 <div className="task-list">
                   {dayPlan.todayItems.map((item) => {
                     const firstPendingStep = item.steps.find((step) => !step.isDone)
+                    const stepProgress = getStepProgress(item)
+                    const progressPercent = stepProgress.total === 0 ? 0 : Math.round((stepProgress.done / stepProgress.total) * 100)
                     return (
                       <article key={item.id} className={item.id === selectedItemId ? 'task-card selected' : 'task-card'}>
                         <div className="task-card-top">
-                          <button type="button" className="task-title-button" onClick={() => setSelectedItemId(item.id)}>
-                            <span className={item.isDone ? 'task-title done' : 'task-title'}>{item.title}</span>
-                            <span className="pill">{item.kind === 'routine' ? '生活任务' : '主动任务'}</span>
-                          </button>
+                          <div className="task-card-heading">
+                            <span className="task-index-badge">{String(item.order).padStart(2, '0')}</span>
+                            <button type="button" className="task-title-button" onClick={() => setSelectedItemId(item.id)}>
+                              <span className={item.isDone ? 'task-title done' : 'task-title'}>{item.title}</span>
+                              <span className="pill">{item.kind === 'routine' ? '生活任务' : '主动任务'}</span>
+                            </button>
+                          </div>
                           <div className="task-card-actions">
-                            <button type="button" className="tiny-button" onClick={() => actions.moveTodayItem(item.id, -1)}>
+                            <button type="button" className="tiny-button icon-button" onClick={() => actions.moveTodayItem(item.id, -1)}>
                               ↑
                             </button>
-                            <button type="button" className="tiny-button" onClick={() => actions.moveTodayItem(item.id, 1)}>
+                            <button type="button" className="tiny-button icon-button" onClick={() => actions.moveTodayItem(item.id, 1)}>
                               ↓
                             </button>
-                            <button type="button" className="tiny-button" onClick={() => actions.toggleTodayItemDone(item.id)}>
+                            <button type="button" className="tiny-button success-button" onClick={() => actions.toggleTodayItemDone(item.id)}>
                               {item.isDone ? '取消完成' : '完成'}
                             </button>
-                            <button type="button" className="tiny-button danger" onClick={() => actions.removeTodayItem(item.id)}>
+                            <button type="button" className="tiny-button danger-button" onClick={() => actions.removeTodayItem(item.id)}>
                               移出今天
                             </button>
                           </div>
                         </div>
 
+                        <div className="task-meta-row">
+                          <span className="task-meta-chip">{getTaskStatusText(item)}</span>
+                          <span className="task-meta-chip">{stepProgress.done}/{stepProgress.total || 1} 步完成</span>
+                          {firstPendingStep ? <span className="task-meta-chip accent">当前下一步：{firstPendingStep.title}</span> : null}
+                        </div>
+
+                        <div className="task-progress-bar" aria-hidden="true">
+                          <span style={{ width: `${progressPercent}%` }} />
+                        </div>
+
                         {item.steps.length > 0 ? (
                           <ul className="step-list">
                             {item.steps.map((step) => (
-                              <li key={step.id} className="step-item">
-                                <label>
-                                  <input
-                                    type="checkbox"
-                                    checked={step.isDone}
-                                    onChange={() => actions.toggleStepDone(item.id, step.id)}
-                                  />
-                                  <span className={step.isDone ? 'done' : ''}>{step.title}</span>
+                              <li key={step.id} className={step.isDone ? 'step-item step-item-done' : 'step-item'}>
+                                <label className="step-main">
+                                  <span className={step.isDone ? 'step-check checked' : 'step-check'}>
+                                    <input
+                                      type="checkbox"
+                                      checked={step.isDone}
+                                      onChange={() => actions.toggleStepDone(item.id, step.id)}
+                                    />
+                                    <span className="step-check-indicator" />
+                                  </span>
+                                  <span className="step-copy">
+                                    <strong className={step.isDone ? 'done' : ''}>{step.title}</strong>
+                                    <small>
+                                      {step.isDone
+                                        ? `这一小步已完成${step.completedAt ? ` · ${dayjs(step.completedAt).format('HH:mm')}` : ''}`
+                                        : '把注意力只放在这一小步上'}
+                                    </small>
+                                  </span>
                                 </label>
                                 <button
                                   type="button"
-                                  className="tiny-button"
+                                  className="tiny-button subtle"
                                   onClick={() => actions.startFocusTimer(item.id, step.id)}
                                 >
-                                  只做这一步
+                                  开始这一步
                                 </button>
                               </li>
                             ))}
@@ -538,7 +702,9 @@ function App() {
                               onChange={(event) => setStepInputs((prev) => ({ ...prev, [item.id]: event.target.value }))}
                               placeholder="例如：先写标题和第一段"
                             />
-                            <button type="submit">拆一小步</button>
+                            <button type="submit" className="tiny-button step-add-button form-action-button">
+                              分解
+                            </button>
                           </form>
                           <button type="button" className="primary-button" onClick={() => startTask(item)}>
                             开始 25 分钟专注
@@ -553,21 +719,30 @@ function App() {
                 </div>
               </Section>
 
-              <Section title="今天不做什么" subtitle="给自己划边界，别让今天又被同样的东西吃掉。">
-                <form className="inline-form" onSubmit={handleAddAvoid}>
-                  <input value={avoidText} onChange={(event) => setAvoidText(event.target.value)} placeholder="例如：专注时段不刷短视频" />
-                  <button type="submit">加入不做清单</button>
-                </form>
+              <Section
+                kicker="Boundaries"
+                title="今天不做什么"
+                subtitle="给自己划边界，别让今天又被同样的东西吃掉。"
+                actions={<span className="muted-label">今天先守住 1 - 3 条就够了</span>}
+              >
+                <div className="avoid-entry-row">
+                  <form className="inline-form avoid-entry-form" onSubmit={handleAddAvoid}>
+                    <input value={avoidText} onChange={(event) => setAvoidText(event.target.value)} placeholder="例如：专注时段不刷短视频" />
+                    <button type="submit" className="ghost-button avoid-action-button">加入不做清单</button>
+                  </form>
+                  <p className="muted avoid-helper-text">今天不需要写很多，先把最容易失守的那几条钉住。</p>
+                </div>
                 <div className="chip-list">
+                  {dayPlan.avoidItems.length === 0 ? <p className="empty-hint">还没有写边界，先写一条最容易失守的。</p> : null}
                   {dayPlan.avoidItems.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      className={item.isDone ? 'chip active' : 'chip'}
+                      className={item.isDone ? 'chip avoid-chip active' : 'chip avoid-chip'}
                       onClick={() => actions.toggleAvoidDone(item.id)}
                     >
-                      {item.isDone ? '已守住 · ' : ''}
-                      {item.text}
+                      <span className="avoid-chip-title">{item.text}</span>
+                      <span className="avoid-chip-state">{item.isDone ? '今天守住了' : '点一下表示今天要守住'}</span>
                     </button>
                   ))}
                 </div>
@@ -575,102 +750,119 @@ function App() {
             </div>
 
             <div className="column-side">
-              <Section title="最小下一步" subtitle="只盯住下一步，别试图一口吞完。">
-                {selectedItem ? (
-                  <>
-                    <h3 className="focus-title">{selectedItem.title}</h3>
+              <Section kicker="Now" title="现在先做" subtitle="右边只留下当前最需要看的几件事。">
+                <div className="compact-stack">
+                  <div className="side-summary-card">
+                    <span className="muted-label">最小下一步</span>
+                    {selectedItem ? (
+                      <>
+                        <h3 className="focus-title">{selectedItem.title}</h3>
+                        <p className="muted">
+                          {selectedItem.steps.find((step) => !step.isDone)?.title ?? '还没有拆出下一步，先补一个。'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="empty-hint">先选一个今天任务。</p>
+                    )}
+                  </div>
+
+                  <div className="side-summary-card">
+                    <span className="muted-label">下一条生活提醒</span>
+                    <p className="focus-title compact-title">{nextRoutine?.title ?? '今天的固定生活任务都已经处理过了。'}</p>
                     <p className="muted">
-                      {selectedItem.steps.find((step) => !step.isDone)?.title ?? '还没有拆出下一步，先补一个。'}
+                      {nextRoutine?.sourceTaskId
+                        ? `提醒时间：${data.taskDefs.find((task) => task.id === nextRoutine.sourceTaskId)?.scheduleTime ?? '未设置'}`
+                        : '如果你还没吃饭、休息或联系人，可以现在补一项。'}
                     </p>
-                  </>
-                ) : (
-                  <p className="empty-hint">先选一个今天任务。</p>
-                )}
+                  </div>
+
+                  {activeRelaxWindow ? (
+                    <div className="relax-card compact-relax-card">
+                      <strong>已解锁 {activeRelaxWindow.minutes} 分钟放松</strong>
+                      <p>{activeRelaxWindow.recommendation}</p>
+                      <p>截止：{dayjs(activeRelaxWindow.expiresAt).format('HH:mm')}</p>
+                      <button type="button" className="primary-button" onClick={() => actions.consumeRelaxWindow(activeRelaxWindow.id)}>
+                        我现在去放松一下
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </Section>
 
-              <Section title="状态记录" subtitle="看见自己最常掉进什么状态，才能知道怎么拉回来。">
-                <form className="stack-form" onSubmit={handleAddState}>
-                  <label>
-                    当前状态
-                    <select value={stateType} onChange={(event) => setStateType(event.target.value as StateType)}>
-                      {Object.entries(stateTemplateLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+              <Section kicker="State" title="状态与交流" subtitle="把状态记录和人与人连接放在一个地方，不再分成很多块。">
+                <div className="compact-stack">
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={dayPlan.communicationDone}
+                      onChange={(event) => actions.setCommunication(event.target.checked, communicationNote)}
+                    />
+                    <span>今天已经主动和一个人认真交流过</span>
                   </label>
-                  <label>
-                    诱因
-                    <input value={stateTrigger} onChange={(event) => setStateTrigger(event.target.value)} placeholder="例如：刷了一会儿手机后停不下来" />
-                  </label>
-                  <label>
-                    应对
-                    <input value={stateResponse} onChange={(event) => setStateResponse(event.target.value)} placeholder="例如：先走动 5 分钟再回来" />
-                  </label>
-                  <label>
-                    结果
-                    <select value={stateResult} onChange={(event) => setStateResult(event.target.value as 'better' | 'same' | 'worse')}>
-                      <option value="better">变好了</option>
-                      <option value="same">差不多</option>
-                      <option value="worse">更糟了</option>
-                    </select>
-                  </label>
-                  <button type="submit" className="primary-button">
-                    记下这次状态
-                  </button>
-                </form>
-                <ul className="log-list">
-                  {todayStateRecords.slice(0, 4).map((record) => (
+                  <textarea
+                    value={communicationNote}
+                    onChange={(event) => setCommunicationNote(event.target.value)}
+                    onBlur={() => actions.setCommunication(dayPlan.communicationDone, communicationNote)}
+                    placeholder="记一下你联系了谁，或者准备联系谁。"
+                    rows={3}
+                  />
+
+                  <form className="stack-form" onSubmit={handleAddState}>
+                    <label>
+                      当前状态
+                      <select value={stateType} onChange={(event) => setStateType(event.target.value as StateType)}>
+                        {Object.entries(stateTemplateLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      诱因
+                      <input value={stateTrigger} onChange={(event) => setStateTrigger(event.target.value)} placeholder="例如：刷了一会儿手机后停不下来" />
+                    </label>
+                    <label>
+                      应对
+                      <input value={stateResponse} onChange={(event) => setStateResponse(event.target.value)} placeholder="例如：先走动 5 分钟再回来" />
+                    </label>
+                    <div className="inline-grid compact-inline-grid">
+                      <label>
+                        结果
+                        <select value={stateResult} onChange={(event) => setStateResult(event.target.value as 'better' | 'same' | 'worse')}>
+                          <option value="better">变好了</option>
+                          <option value="same">差不多</option>
+                          <option value="worse">更糟了</option>
+                        </select>
+                      </label>
+                      <button type="submit" className="primary-button">
+                        记下状态
+                      </button>
+                    </div>
+                  </form>
+
+                  <ul className="log-list compact-log-list">
+                    {todayStateRecords.slice(0, 3).map((record) => (
+                      <li key={record.id}>
+                        <strong>{stateTemplateLabels[record.stateType]}</strong>
+                        <span>{record.trigger || '未写诱因'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Section>
+
+              <Section kicker="Blockers" title="卡在哪里" subtitle="这里专门放你每一轮卡住的位置和下一步，不让它们消失。">
+                <ul className="log-list highlight-log-list">
+                  {todayDifficultyRecords.length === 0 ? <li>现在还没有卡点记录。</li> : null}
+                  {todayDifficultyRecords.slice(0, 4).map((record) => (
                     <li key={record.id}>
-                      <strong>{stateTemplateLabels[record.stateType]}</strong>
-                      <span>{record.trigger || '未写诱因'}</span>
-                      <span>应对：{record.response || '未写'}</span>
+                      <strong>{difficultyTemplateLabels[record.type]}</strong>
+                      <span>{record.note || '这轮没有写清具体卡点。'}</span>
+                      <span>下一步：{record.nextAction || '还没写下一步。'}</span>
                     </li>
                   ))}
                 </ul>
-              </Section>
-
-              <Section title="与人交流" subtitle={data.dailyTemplate.communicationPrompt}>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={dayPlan.communicationDone}
-                    onChange={(event) => actions.setCommunication(event.target.checked, communicationNote)}
-                  />
-                  <span>今天已经主动和一个人认真交流过</span>
-                </label>
-                <textarea
-                  value={communicationNote}
-                  onChange={(event) => setCommunicationNote(event.target.value)}
-                  onBlur={() => actions.setCommunication(dayPlan.communicationDone, communicationNote)}
-                  placeholder="记一下你联系了谁，或者准备联系谁。"
-                  rows={3}
-                />
-              </Section>
-
-              <Section title="放松窗口" subtitle="奖励的是一个有效闭环，不是刷水任务。">
-                {activeRelaxWindow ? (
-                  <div className="relax-card">
-                    <strong>已解锁 {activeRelaxWindow.minutes} 分钟放松</strong>
-                    <p>{activeRelaxWindow.recommendation}</p>
-                    <p>截止：{dayjs(activeRelaxWindow.expiresAt).format('HH:mm')}</p>
-                    <button type="button" className="primary-button" onClick={() => actions.consumeRelaxWindow(activeRelaxWindow.id)}>
-                      我现在去放松一下
-                    </button>
-                  </div>
-                ) : (
-                  <p className="empty-hint">完成一个有效番茄钟或一个任务闭环后，会在这里解锁放松窗口。</p>
-                )}
-              </Section>
-
-              <Section title="下一条生活提醒" subtitle="先守住生活骨架，再谈效率。">
-                <p className="focus-title">{nextRoutine?.title ?? '今天的固定生活任务都已经处理过了。'}</p>
-                <p className="muted">
-                  {nextRoutine?.sourceTaskId
-                    ? `提醒时间：${data.taskDefs.find((task) => task.id === nextRoutine.sourceTaskId)?.scheduleTime ?? '未设置'}`
-                    : '如果你还没吃饭、休息或联系人，可以现在补一项。'}
-                </p>
               </Section>
             </div>
           </div>
@@ -851,6 +1043,36 @@ function App() {
                   ))}
                 </div>
               </Section>
+
+              <Section title="飞书同步" subtitle="把今天总结、做完的步骤和困难日志直接发到你的飞书群机器人。">
+                <div className="stack-form">
+                  <label>
+                    飞书 webhook 地址
+                    <input
+                      value={feishuWebhookUrl}
+                      onChange={(event) => setFeishuWebhookUrl(event.target.value)}
+                      placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                    />
+                  </label>
+                  <label>
+                    关键词（可选）
+                    <input
+                      value={feishuKeyword}
+                      onChange={(event) => setFeishuKeyword(event.target.value)}
+                      placeholder="如果机器人设置了关键词，就填这里"
+                    />
+                  </label>
+                  <label>
+                    签名密钥（可选）
+                    <input
+                      value={feishuSecret}
+                      onChange={(event) => setFeishuSecret(event.target.value)}
+                      placeholder="如果机器人开启签名校验，就填这里"
+                    />
+                  </label>
+                  <p className="muted">飞书官方更推荐服务端调用，但你这个项目是自用型 Web 第一版，所以这里先做成直连机器人 webhook。</p>
+                </div>
+              </Section>
             </div>
           </div>
         ) : null}
@@ -906,6 +1128,32 @@ function App() {
             </div>
 
             <div className="column-side">
+              <Section title="和时钟关联" subtitle="今天做了什么、什么时候做完、哪里卡住，按时间直接回看。">
+                <ul className="timeline-list">
+                  {todayTimeline.length === 0 ? <li className="timeline-empty">今天还没有形成时间线。</li> : null}
+                  {todayTimeline.map((entry) => (
+                    <li key={entry.id} className={`timeline-item ${entry.type}`}>
+                      <span className="timeline-time">{dayjs(entry.happenedAt).format('HH:mm')}</span>
+                      <div>
+                        <strong>{entry.title}</strong>
+                        <p>{entry.detail}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+
+              <Section title="同步到飞书" subtitle="把今天总结、做完的步骤和困难日志直接发到飞书群里。">
+                <div className="stack-form">
+                  <button type="button" className="primary-button" onClick={handleSyncToFeishu} disabled={isSyncingFeishu}>
+                    {isSyncingFeishu ? '正在同步到飞书…' : '同步今天日志到飞书'}
+                  </button>
+                  {feishuSyncMessage ? (
+                    <p className={feishuSyncStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{feishuSyncMessage}</p>
+                  ) : null}
+                </div>
+              </Section>
+
               <Section title="今天的困难" subtitle="卡点不是失败，是下一步的入口。">
                 <ul className="log-list">
                   {todayDifficultyRecords.length === 0 ? <li>还没有记录困难。</li> : null}
@@ -943,7 +1191,7 @@ function App() {
           </div>
           <div className="floating-actions">
             <button type="button" className="ghost-button" onClick={() => setFinishOpen(true)}>
-              结束并记录
+              提前结束并记录
             </button>
             <button type="button" className="ghost-button danger" onClick={actions.cancelTimer}>
               取消本轮

@@ -1,28 +1,28 @@
-import { useEffect, useState } from 'react'
-import dayjs from 'dayjs'
+import { useEffect, useMemo, useState } from 'react'
+import dayjs, { type Dayjs } from 'dayjs'
 import type { ActiveTimer } from '../types'
 
-function getRemainingSeconds(activeTimer: ActiveTimer | null): number {
+function getRemainingSeconds(activeTimer: ActiveTimer | null, currentTime: Dayjs = dayjs()): number {
   if (!activeTimer) return 0
 
   const endAt = dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute')
-  return Math.max(0, endAt.diff(dayjs(), 'second'))
+  return Math.max(0, endAt.diff(currentTime, 'second'))
 }
 
 export function useTimerRemaining(activeTimer: ActiveTimer | null): number {
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(() => getRemainingSeconds(activeTimer))
+  const [currentTime, setCurrentTime] = useState<Dayjs>(() => dayjs())
 
   useEffect(() => {
-    setRemainingSeconds(getRemainingSeconds(activeTimer))
+    setCurrentTime(dayjs())
 
     if (!activeTimer) return
 
     const timerId = window.setInterval(() => {
-      setRemainingSeconds(getRemainingSeconds(activeTimer))
+      setCurrentTime(dayjs())
     }, 1000)
 
     return () => window.clearInterval(timerId)
-  }, [activeTimer])
+  }, [activeTimer?.startedAt, activeTimer?.durationMinutes])
 
-  return remainingSeconds
+  return useMemo(() => getRemainingSeconds(activeTimer, currentTime), [activeTimer, currentTime])
 }

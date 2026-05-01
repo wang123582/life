@@ -142,6 +142,7 @@ export function useLifeApp() {
       const next = ensureDayPlan(prev, dayKey)
       const plan = clonePlan(next.dayPlans[dayKey])
       let changedSource: TodayItem | undefined
+      const now = new Date().toISOString()
 
       plan.todayItems = plan.todayItems.map((item) => {
         if (item.id !== itemId) return item
@@ -150,7 +151,11 @@ export function useLifeApp() {
         const isDone = !item.isDone
         const steps = item.steps.length === 0
           ? item.steps
-          : item.steps.map((step) => ({ ...step, isDone }))
+          : item.steps.map((step) => ({
+              ...step,
+              isDone,
+              completedAt: isDone ? step.completedAt ?? now : undefined,
+            }))
 
         return {
           ...item,
@@ -220,6 +225,7 @@ export function useLifeApp() {
                   id: createId('step'),
                   title: cleanTitle,
                   isDone: false,
+                  completedAt: undefined,
                 },
               ],
             }
@@ -234,7 +240,15 @@ export function useLifeApp() {
       todayItems: plan.todayItems.map((item) => {
         if (item.id !== todayItemId) return item
 
-        const steps = item.steps.map((step) => (step.id === stepId ? { ...step, isDone: !step.isDone } : step))
+        const steps = item.steps.map((step) =>
+          step.id === stepId
+            ? {
+                ...step,
+                isDone: !step.isDone,
+                completedAt: step.isDone ? undefined : new Date().toISOString(),
+              }
+            : step,
+        )
         const allDone = steps.length > 0 && steps.every((step) => step.isDone)
 
         return {
@@ -400,10 +414,11 @@ export function useLifeApp() {
       const plan = clonePlan(next.dayPlans[dayKey])
 
       if (payload.markStepDone && activeTimer.dayItemId && activeTimer.stepId) {
+        const finishedAt = new Date().toISOString()
         plan.todayItems = plan.todayItems.map((item) => {
           if (item.id !== activeTimer.dayItemId) return item
           const steps: TaskStep[] = item.steps.map((step) =>
-            step.id === activeTimer.stepId ? { ...step, isDone: true } : step,
+            step.id === activeTimer.stepId ? { ...step, isDone: true, completedAt: finishedAt } : step,
           )
           const allDone = steps.length > 0 && steps.every((step) => step.isDone)
           return {
@@ -458,6 +473,7 @@ export function useLifeApp() {
                             id: createId('step'),
                             title: payload.nextAction!.trim(),
                             isDone: false,
+                            completedAt: undefined,
                           },
                         ],
                       }

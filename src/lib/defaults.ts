@@ -96,6 +96,7 @@ export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefin
           id: createId('step'),
           title: `完成：${task.title}`,
           isDone: false,
+          completedAt: undefined,
         },
       ],
       createdAt: new Date().toISOString(),
@@ -143,6 +144,9 @@ export function defaultData(): LifeAppData {
       blockerLevel: 'soft',
       blockedTargets: ['抖音', '微博', '小红书', 'Bilibili'],
       encouragementEnabled: true,
+      feishuWebhookUrl: '',
+      feishuKeyword: '',
+      feishuSecret: '',
     },
     activeTimer: null,
   }

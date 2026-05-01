@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">life</string>
+    <string name="title_activity_main">life</string>
+    <string name="package_name">com.toe.life</string>
+    <string name="custom_url_scheme">com.toe.life</string>
+</resources>

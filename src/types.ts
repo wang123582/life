@@ -27,6 +27,7 @@ export interface TaskStep {
   id: string
   title: string
   isDone: boolean
+  completedAt?: string
 }
 
 export interface TodayItem {
@@ -129,6 +130,9 @@ export interface AppSettings {
   blockerLevel: 'light' | 'soft' | 'hard'
   blockedTargets: string[]
   encouragementEnabled: boolean
+  feishuWebhookUrl: string
+  feishuKeyword: string
+  feishuSecret: string
 }
 
 export interface ActiveTimer {

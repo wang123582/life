@@ -886,6 +886,22 @@
 
 说明：如果要在手机上像 App 一样“添加到主屏幕”，最稳妥的方式仍然是通过 HTTPS 地址访问；本地局域网调试更适合先体验页面本身。
 
+### 已补上的 Android App 封装
+
+- 已接入 `Capacitor`
+- 已生成 `android/` 原生工程
+- 已生成 Android 图标与启动页资源
+- 现有页面可以直接复用为 Android App 的界面层
+- 已补充 Android 常用脚本：
+	- `npm run android:sync`
+	- `npm run android:open`
+	- `npm run android:run`
+	- `npm run android:apk:debug`
+	- `npm run android:apk:release`
+	- `npm run android:bundle:release`
+
+说明：现在这已经不是“只能网页打开”的状态了，而是已经有了真正可继续打包成 Android 安装包的工程基础。当前环境在真正导出 APK 时卡在 Java 17 要求上，具体操作与说明见 `docs/android.md`。
+
 ### 对应文件
 
 - `src/App.tsx`：第一版主界面与核心交互
@@ -896,6 +912,7 @@
 - `docs/PRD.md`：正式 PRD 骨架
 - `docs/pages.md`：页面原型说明
 - `docs/data-api.md`：数据模型与 API 草案
+- `docs/android.md`：Android 封装与打包说明
 
 ### 如何运行
 
