@@ -130,6 +130,10 @@ export interface AppSettings {
   blockerLevel: 'light' | 'soft' | 'hard'
   blockedTargets: string[]
   encouragementEnabled: boolean
+  syncEnabled: boolean
+  syncSpaceId: string
+  syncDeviceName: string
+  mobileTimerEnabled: boolean
   feishuWebhookUrl: string
   feishuKeyword: string
   feishuSecret: string
@@ -145,6 +149,7 @@ export interface ActiveTimer {
 }
 
 export interface LifeAppData {
+  updatedAt: string
   taskDefs: TaskDefinition[]
   ruleDefs: RuleDefinition[]
   dayPlans: Record<string, DayPlan>

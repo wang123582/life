@@ -58,6 +58,18 @@ export function createTaskDefinition(title: string, kind: TaskKind, scheduleTime
   }
 }
 
+function defaultDeviceName(): string {
+  if (typeof navigator === 'undefined') {
+    return '这台设备'
+  }
+
+  if (/android/i.test(navigator.userAgent)) {
+    return '手机'
+  }
+
+  return '电脑'
+}
+
 export function defaultTaskDefs(): TaskDefinition[] {
   return [
     createTaskDefinition('主动联系一个人', 'routine', '20:30'),
@@ -114,8 +126,10 @@ export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefin
 
 export function defaultData(): LifeAppData {
   const taskDefs = defaultTaskDefs()
+  const now = new Date().toISOString()
 
   return {
+    updatedAt: now,
     taskDefs,
     ruleDefs: defaultRuleDefs(),
     dayPlans: {
@@ -144,6 +158,10 @@ export function defaultData(): LifeAppData {
       blockerLevel: 'soft',
       blockedTargets: ['抖音', '微博', '小红书', 'Bilibili'],
       encouragementEnabled: true,
+      syncEnabled: false,
+      syncSpaceId: '',
+      syncDeviceName: defaultDeviceName(),
+      mobileTimerEnabled: true,
       feishuWebhookUrl: '',
       feishuKeyword: '',
       feishuSecret: '',
@@ -160,6 +178,7 @@ export function ensureDayPlan(data: LifeAppData, dayKey = currentDayKey()): Life
 
   return {
     ...data,
+    updatedAt: new Date().toISOString(),
     dayPlans: {
       ...data.dayPlans,
       [dayKey]: createEmptyDayPlan(dayKey, data.taskDefs),

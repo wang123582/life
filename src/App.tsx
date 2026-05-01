@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { difficultyTemplateLabels, encouragementMessages, stateTemplateLabels } from './lib/defaults'
 import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, sendTodayReportToFeishu } from './lib/feishu'
+import { canUseNativeTimer, clearFocusTimerNotification, ensureNativeTimerPermission, scheduleFocusTimerNotification } from './lib/mobileTimer'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
+import { createSyncSpaceId, isSyncEnvReady, syncSetupSql } from './lib/sync'
 import { useLifeApp } from './hooks/useLifeApp'
 import { useTimerRemaining } from './hooks/useTimerRemaining'
 import type { DifficultyType, ReviewInput, StateType, TabKey, TodayItem } from './types'
@@ -68,7 +70,7 @@ function Section({
 }
 
 function App() {
-  const { data, dayKey, dayPlan, pendingTodayItems, activeRelaxWindow, todayDifficultyRecords, todayStateRecords, todayFocusSessions, actions } =
+  const { data, dayKey, dayPlan, pendingTodayItems, activeRelaxWindow, todayDifficultyRecords, todayStateRecords, todayFocusSessions, sync, actions } =
     useLifeApp()
   const [activeTab, setActiveTab] = useState<TabKey>('today')
   const [taskTitle, setTaskTitle] = useState('')
@@ -102,6 +104,8 @@ function App() {
   const [weeklyCommunicationGoal, setWeeklyCommunicationGoal] = useState(data.weeklyTemplate.communicationGoal)
   const [weeklyRestPlan, setWeeklyRestPlan] = useState(data.weeklyTemplate.restPlan)
   const [blockedTargets, setBlockedTargets] = useState(data.settings.blockedTargets.join('\n'))
+  const [syncSpaceId, setSyncSpaceId] = useState(data.settings.syncSpaceId)
+  const [syncDeviceName, setSyncDeviceName] = useState(data.settings.syncDeviceName)
   const [feishuWebhookUrl, setFeishuWebhookUrl] = useState(data.settings.feishuWebhookUrl)
   const [feishuKeyword, setFeishuKeyword] = useState(data.settings.feishuKeyword)
   const [feishuSecret, setFeishuSecret] = useState(data.settings.feishuSecret)
@@ -120,6 +124,8 @@ function App() {
   const [isSavingReview, setIsSavingReview] = useState(false)
   const [reviewSaveMessage, setReviewSaveMessage] = useState('')
   const [reviewSaveStatus, setReviewSaveStatus] = useState<'success' | 'error' | ''>('')
+  const [nativeTimerStatus, setNativeTimerStatus] = useState<'success' | 'error' | ''>('')
+  const [nativeTimerMessage, setNativeTimerMessage] = useState('')
   const [encouragementIndex, setEncouragementIndex] = useState(0)
   const [contextReminder, setContextReminder] = useState('')
   const [lastReminderKey, setLastReminderKey] = useState('')
@@ -129,6 +135,7 @@ function App() {
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() => window.matchMedia('(max-width: 768px)').matches)
 
   const activeTimer = data.activeTimer
+  const nativeTimerAvailable = canUseNativeTimer()
   const remainingSeconds = useTimerRemaining(activeTimer)
   const activeItem = useMemo(
     () => dayPlan.todayItems.find((item) => item.id === activeTimer?.dayItemId),
@@ -166,6 +173,11 @@ function App() {
     setFeishuKeyword(data.settings.feishuKeyword)
     setFeishuSecret(data.settings.feishuSecret)
   }, [data.settings.feishuWebhookUrl, data.settings.feishuKeyword, data.settings.feishuSecret])
+
+  useEffect(() => {
+    setSyncSpaceId(data.settings.syncSpaceId)
+    setSyncDeviceName(data.settings.syncDeviceName)
+  }, [data.settings.syncSpaceId, data.settings.syncDeviceName])
 
   useEffect(() => {
     const firstPendingItem = pendingTodayItems[0]?.id ?? dayPlan.todayItems[0]?.id ?? ''
@@ -248,6 +260,28 @@ function App() {
       setExpandedTaskId('')
     }
   }, [isMobileLayout])
+
+  useEffect(() => {
+    if (!data.settings.mobileTimerEnabled) {
+      void clearFocusTimerNotification()
+      return
+    }
+
+    if (!activeTimer || !nativeTimerAvailable) {
+      void clearFocusTimerNotification()
+      return
+    }
+
+    const endsAt = dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute').toDate()
+    const title = activeItem?.title ?? 'life 专注提醒'
+    const body = activeStep ? `这一轮结束了：${activeStep.title}` : '这一轮结束了，回来记录结果和下一步。'
+
+    void scheduleFocusTimerNotification({
+      endsAt,
+      title,
+      body,
+    })
+  }, [activeItem, activeStep, activeTimer, data.settings.mobileTimerEnabled, nativeTimerAvailable])
 
   useEffect(() => {
     const title = activeTimer
@@ -410,6 +444,8 @@ function App() {
     })
     actions.updateSettings({
       blockedTargets: splitLines(blockedTargets),
+      syncSpaceId: syncSpaceId.trim().toUpperCase(),
+      syncDeviceName: syncDeviceName.trim() || data.settings.syncDeviceName,
       feishuWebhookUrl: feishuWebhookUrl.trim(),
       feishuKeyword: feishuKeyword.trim(),
       feishuSecret: feishuSecret.trim(),
@@ -517,6 +553,56 @@ function App() {
     } finally {
       setIsTestingFeishu(false)
     }
+  }
+
+  const handleCreateSyncSpace = () => {
+    const nextSpaceId = createSyncSpaceId()
+    setSyncSpaceId(nextSpaceId)
+    actions.updateSettings({
+      syncEnabled: true,
+      syncSpaceId: nextSpaceId,
+      syncDeviceName: syncDeviceName.trim() || data.settings.syncDeviceName,
+    })
+  }
+
+  const handleSaveSyncSettings = () => {
+    actions.updateSettings({
+      syncEnabled: data.settings.syncEnabled,
+      syncSpaceId: syncSpaceId.trim().toUpperCase(),
+      syncDeviceName: syncDeviceName.trim() || data.settings.syncDeviceName,
+    })
+  }
+
+  const handlePullCloud = async () => {
+    try {
+      handleSaveSyncSettings()
+      await sync.pullFromCloud('manual')
+    } catch {
+      // 错误状态由 hook 内部统一处理
+    }
+  }
+
+  const handlePushCloud = async () => {
+    try {
+      handleSaveSyncSettings()
+      await sync.pushToCloud('manual')
+    } catch {
+      // 错误状态由 hook 内部统一处理
+    }
+  }
+
+  const handleEnableNativeTimer = async () => {
+    const granted = await ensureNativeTimerPermission()
+
+    if (granted) {
+      actions.updateSettings({ mobileTimerEnabled: true })
+      setNativeTimerStatus('success')
+      setNativeTimerMessage('已经拿到手机提醒权限。以后切后台或锁屏，番茄钟结束也会提醒你。')
+      return
+    }
+
+    setNativeTimerStatus('error')
+    setNativeTimerMessage('没有拿到手机提醒权限，计时仍然只能停留在应用页面里。')
   }
 
   const handleSyncToFeishu = async () => {
@@ -1150,8 +1236,55 @@ function App() {
             </div>
 
             <div className="column-side">
-              <Section title="提醒与干预" subtitle="先做分级干预，别一上来就全硬锁。">
+              <Section title="设备 / 同步 / 提醒" subtitle="把跨端同步、手机计时和干预放在一个地方，少一点分散设置。">
                 <div className="stack-form">
+                  <label>
+                    这台设备叫什么
+                    <input value={syncDeviceName} onChange={(event) => setSyncDeviceName(event.target.value)} placeholder="例如：我的手机 / 家里电脑" />
+                  </label>
+                  <label>
+                    同步空间码
+                    <input value={syncSpaceId} onChange={(event) => setSyncSpaceId(event.target.value.toUpperCase())} placeholder="例如：ABCD-EFGH" />
+                  </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={data.settings.syncEnabled}
+                      onChange={(event) => actions.updateSettings({ syncEnabled: event.target.checked })}
+                    />
+                    <span>开启手机和电脑共用同一份数据</span>
+                  </label>
+                  <div className="feishu-actions compact-actions-grid">
+                    <button type="button" className="ghost-button" onClick={handleCreateSyncSpace}>
+                      生成同步码
+                    </button>
+                    <button type="button" className="ghost-button" onClick={handlePullCloud}>
+                      从云端拉下来
+                    </button>
+                    <button type="button" className="primary-button" onClick={handlePushCloud}>
+                      上传这台设备数据
+                    </button>
+                  </div>
+                  {sync.message ? (
+                    <p className={sync.status === 'error' ? 'sync-status error' : 'sync-status success'}>{sync.message}</p>
+                  ) : null}
+                  {!isSyncEnvReady() ? (
+                    <p className="sync-status error">跨端同步已经接进去了，但还要先把 `.env` 里的 Supabase 地址和 key 填上。</p>
+                  ) : null}
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={data.settings.mobileTimerEnabled}
+                      onChange={(event) => actions.updateSettings({ mobileTimerEnabled: event.target.checked })}
+                    />
+                    <span>手机端开启原生计时提醒（锁屏/切后台后仍会响）</span>
+                  </label>
+                  <button type="button" className="ghost-button" onClick={handleEnableNativeTimer}>
+                    申请手机计时权限
+                  </button>
+                  {nativeTimerMessage ? (
+                    <p className={nativeTimerStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{nativeTimerMessage}</p>
+                  ) : null}
                   <label>
                     干预等级
                     <select
@@ -1175,10 +1308,12 @@ function App() {
                     />
                     <span>开启鼓励提醒</span>
                   </label>
+                  <p className="muted">Supabase 里执行这段 SQL 后，同步才会真正可用：</p>
+                  <pre className="code-block">{syncSetupSql}</pre>
                 </div>
               </Section>
 
-              <Section title="专注黑名单" subtitle="专注时段请先别碰这些。Web 第一版先做提醒和软阻断提示。">
+              <Section title="专注黑名单" subtitle="专注时段请先别碰这些。页面先展示清楚，不额外塞更多操作。">
                 <div className="chip-list">
                   {data.settings.blockedTargets.map((target) => (
                     <span key={target} className="chip warning">

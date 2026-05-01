@@ -10,3 +10,5 @@ icon-192.png
 icon-512.png
 .tools
 android/local.properties
+.env
+.env.local

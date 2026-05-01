@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import { createEmptyDayPlan, createId, currentDayKey, defaultData, ensureDayPlan } from '../lib/defaults'
 import { loadData, saveData } from '../lib/storage'
+import { isSyncEnvReady, pullRemoteSnapshot, pushRemoteSnapshot } from '../lib/sync'
 import type {
   AppSettings,
   DifficultyRecord,
@@ -62,9 +63,25 @@ function appendRelaxWindow(data: LifeAppData, sourceType: RelaxWindow['sourceTyp
   }
 }
 
+function stampData(data: LifeAppData): LifeAppData {
+  return {
+    ...data,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 export function useLifeApp() {
   const [data, setData] = useState<LifeAppData>(() => loadData())
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle')
+  const [syncMessage, setSyncMessage] = useState('')
   const dayKey = currentDayKey()
+  const latestDataRef = useRef(data)
+  const lastSyncedUpdatedAtRef = useRef('')
+  const applyingRemoteRef = useRef(false)
+
+  useEffect(() => {
+    latestDataRef.current = data
+  }, [data])
 
   useEffect(() => {
     setData((prev) => ensureDayPlan(prev, dayKey))
@@ -77,20 +94,88 @@ export function useLifeApp() {
   const safeData = useMemo(() => ensureDayPlan(data, dayKey), [data, dayKey])
   const dayPlan = safeData.dayPlans[dayKey] ?? createEmptyDayPlan(dayKey, safeData.taskDefs)
   const activeRelaxWindow = safeData.relaxWindows.find((window) => !window.used && dayjs(window.expiresAt).isAfter(dayjs()))
+  const syncReady = Boolean(safeData.settings.syncEnabled && safeData.settings.syncSpaceId.trim() && isSyncEnvReady())
 
   const updateDayPlan = (updater: (plan: typeof dayPlan) => typeof dayPlan) => {
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
       const currentPlan = next.dayPlans[dayKey]
 
-      return {
+      return stampData({
         ...next,
         dayPlans: {
           ...next.dayPlans,
           [dayKey]: updater(clonePlan(currentPlan)),
         },
-      }
+      })
     })
+  }
+
+  const applyRemoteData = (remoteData: LifeAppData) => {
+    applyingRemoteRef.current = true
+    lastSyncedUpdatedAtRef.current = remoteData.updatedAt
+    setData(ensureDayPlan(remoteData, dayKey))
+    window.setTimeout(() => {
+      applyingRemoteRef.current = false
+    }, 0)
+  }
+
+  const pullFromCloud = async (source: 'manual' | 'auto' = 'manual') => {
+    if (!safeData.settings.syncSpaceId.trim()) {
+      throw new Error('先填同步空间码。')
+    }
+
+    if (!isSyncEnvReady()) {
+      throw new Error('还没配置 Supabase。先把 .env 里的地址和 key 填上。')
+    }
+
+    if (source === 'manual') {
+      setSyncStatus('syncing')
+      setSyncMessage('正在从云端拉取…')
+    }
+
+    const remoteData = await pullRemoteSnapshot(safeData.settings.syncSpaceId)
+
+    if (!remoteData) {
+      if (source === 'manual') {
+        setSyncStatus('error')
+        setSyncMessage('云端还没有数据，先在一台设备上保存后上传一次。')
+      }
+      return
+    }
+
+    if (!latestDataRef.current.updatedAt || dayjs(remoteData.updatedAt).isAfter(dayjs(latestDataRef.current.updatedAt))) {
+      applyRemoteData(remoteData)
+      setSyncStatus('success')
+      setSyncMessage('已从云端拉下最新数据。')
+      return
+    }
+
+    lastSyncedUpdatedAtRef.current = latestDataRef.current.updatedAt
+    setSyncStatus('success')
+    setSyncMessage(source === 'manual' ? '当前设备已经是最新数据。' : '已检查云端，没有更新。')
+  }
+
+  const pushToCloud = async (source: 'manual' | 'auto' = 'manual') => {
+    const currentData = latestDataRef.current
+
+    if (!currentData.settings.syncSpaceId.trim()) {
+      throw new Error('先填同步空间码。')
+    }
+
+    if (!isSyncEnvReady()) {
+      throw new Error('还没配置 Supabase。先把 .env 里的地址和 key 填上。')
+    }
+
+    if (source === 'manual') {
+      setSyncStatus('syncing')
+      setSyncMessage('正在上传到云端…')
+    }
+
+    await pushRemoteSnapshot(currentData.settings.syncSpaceId, currentData, currentData.settings.syncDeviceName)
+    lastSyncedUpdatedAtRef.current = currentData.updatedAt
+    setSyncStatus('success')
+    setSyncMessage('已把这台设备的数据上传到云端。')
   }
 
   const addTaskDefinition = (title: string, kind: TaskKind, scheduleTime?: string) => {
@@ -106,7 +191,7 @@ export function useLifeApp() {
     }
 
     setData((prev) => ({
-      ...prev,
+      ...stampData(prev),
       taskDefs: [task, ...prev.taskDefs],
     }))
   }
@@ -164,13 +249,13 @@ export function useLifeApp() {
         }
       })
 
-      let updated: LifeAppData = {
+      let updated: LifeAppData = stampData({
         ...next,
         dayPlans: {
           ...next.dayPlans,
           [dayKey]: plan,
         },
-      }
+      })
 
       if (changedSource && !changedSource.isDone) {
         updated = appendRelaxWindow(updated, changedSource.kind === 'routine' ? 'routine' : 'task', changedSource.id)
@@ -305,7 +390,7 @@ export function useLifeApp() {
     }
 
     setData((prev) => ({
-      ...ensureDayPlan(prev, dayKey),
+      ...stampData(ensureDayPlan(prev, dayKey)),
       stateRecords: [record, ...prev.stateRecords],
     }))
   }
@@ -315,7 +400,7 @@ export function useLifeApp() {
     if (!cleanText) return
 
     setData((prev) => ({
-      ...prev,
+      ...stampData(prev),
       ruleDefs: [
         {
           id: createId('rule'),
@@ -330,7 +415,7 @@ export function useLifeApp() {
 
   const updateDailyTemplate = (payload: Partial<LifeAppData['dailyTemplate']>) => {
     setData((prev) => ({
-      ...prev,
+      ...stampData(prev),
       dailyTemplate: {
         ...prev.dailyTemplate,
         ...payload,
@@ -340,14 +425,14 @@ export function useLifeApp() {
 
   const updateWeeklyTemplate = (payload: WeeklyTemplate) => {
     setData((prev) => ({
-      ...prev,
+      ...stampData(prev),
       weeklyTemplate: payload,
     }))
   }
 
   const updateSettings = (payload: Partial<AppSettings>) => {
     setData((prev) => ({
-      ...prev,
+      ...stampData(prev),
       settings: {
         ...prev.settings,
         ...payload,
@@ -357,7 +442,7 @@ export function useLifeApp() {
 
   const startFocusTimer = (dayItemId?: string, stepId?: string) => {
     setData((prev) => ({
-      ...ensureDayPlan(prev, dayKey),
+      ...stampData(ensureDayPlan(prev, dayKey)),
       activeTimer: {
         mode: 'focus',
         dayItemId,
@@ -385,11 +470,11 @@ export function useLifeApp() {
         status: 'cancelled',
       }
 
-      return {
+      return stampData({
         ...next,
         activeTimer: null,
         focusSessions: [session, ...next.focusSessions],
-      }
+      })
     })
   }
 
@@ -429,7 +514,7 @@ export function useLifeApp() {
         })
       }
 
-      let updated: LifeAppData = {
+      let updated: LifeAppData = stampData({
         ...next,
         activeTimer: null,
         focusSessions: [session, ...next.focusSessions],
@@ -437,7 +522,7 @@ export function useLifeApp() {
           ...next.dayPlans,
           [dayKey]: plan,
         },
-      }
+      })
 
       if (payload.difficultyType || payload.nextAction?.trim()) {
         const difficulty: DifficultyRecord = {
@@ -495,7 +580,7 @@ export function useLifeApp() {
 
   const consumeRelaxWindow = (windowId: string) => {
     setData((prev) => ({
-      ...prev,
+      ...stampData(prev),
       relaxWindows: prev.relaxWindows.map((item) => (item.id === windowId ? { ...item, used: true } : item)),
     }))
   }
@@ -514,6 +599,46 @@ export function useLifeApp() {
     setData(defaultData())
   }
 
+  useEffect(() => {
+    if (!syncReady) {
+      return
+    }
+
+    void pullFromCloud('auto').catch((error) => {
+      setSyncStatus('error')
+      setSyncMessage(error instanceof Error ? error.message : '自动拉取云端数据失败。')
+    })
+
+    const intervalId = window.setInterval(() => {
+      void pullFromCloud('auto').catch(() => undefined)
+    }, 15000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [syncReady, safeData.settings.syncSpaceId])
+
+  useEffect(() => {
+    if (!syncReady || applyingRemoteRef.current) {
+      return
+    }
+
+    if (!safeData.updatedAt || safeData.updatedAt === lastSyncedUpdatedAtRef.current) {
+      return
+    }
+
+    const timerId = window.setTimeout(() => {
+      void pushToCloud('auto').catch((error) => {
+        setSyncStatus('error')
+        setSyncMessage(error instanceof Error ? error.message : '自动上传云端失败。')
+      })
+    }, 1200)
+
+    return () => {
+      window.clearTimeout(timerId)
+    }
+  }, [safeData.updatedAt, syncReady])
+
   const pendingTodayItems = dayPlan.todayItems.filter((item) => !item.isDone)
   const todayDifficultyRecords = safeData.difficultyRecords.filter((record) => record.dayKey === dayKey)
   const todayStateRecords = safeData.stateRecords.filter((record) => record.dayKey === dayKey)
@@ -528,6 +653,14 @@ export function useLifeApp() {
     todayDifficultyRecords,
     todayStateRecords,
     todayFocusSessions,
+    sync: {
+      isReady: syncReady,
+      envReady: isSyncEnvReady(),
+      status: syncStatus,
+      message: syncMessage,
+      pullFromCloud,
+      pushToCloud,
+    },
     actions: {
       addTaskDefinition,
       addTaskToToday,

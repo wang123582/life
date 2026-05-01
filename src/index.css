@@ -856,6 +856,23 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.compact-actions-grid > * {
+  flex: 1 1 180px;
+}
+
+.code-block {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 10, 19, 0.72);
+  color: #cfd7f7;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .floating-timer {
   position: fixed;
   right: 24px;
@@ -1048,6 +1065,7 @@ button:disabled {
   .task-card-actions,
   .floating-actions,
   .feishu-actions,
+  .compact-actions-grid,
   .task-footer-actions,
   .task-mobile-actions,
   .mobile-side-toggle {
