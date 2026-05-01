@@ -204,6 +204,67 @@ export function useLifeApp() {
     }))
   }
 
+  const quickStartTodayTask = (title: string, firstStep?: string) => {
+    const cleanTitle = title.trim()
+    const cleanStep = firstStep?.trim()
+
+    if (!cleanTitle) {
+      return null
+    }
+
+    const task: TaskDefinition = {
+      id: createId('task'),
+      title: cleanTitle,
+      kind: 'normal',
+      createdAt: new Date().toISOString(),
+    }
+
+    const todayItemId = createId('today')
+    const firstStepId = cleanStep ? createId('step') : undefined
+
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const plan = clonePlan(next.dayPlans[dayKey])
+      const todayItem: TodayItem = {
+        id: todayItemId,
+        sourceTaskId: task.id,
+        title: task.title,
+        kind: 'normal',
+        isDone: false,
+        order: plan.todayItems.length + 1,
+        steps: cleanStep
+          ? [
+              {
+                id: firstStepId!,
+                title: cleanStep,
+                isDone: false,
+                completedAt: undefined,
+              },
+            ]
+          : [],
+        createdAt: new Date().toISOString(),
+      }
+
+      return stampData({
+        ...next,
+        taskDefs: [task, ...next.taskDefs],
+        dayPlans: {
+          ...next.dayPlans,
+          [dayKey]: {
+            ...plan,
+            todayItems: [...plan.todayItems, todayItem],
+          },
+        },
+      })
+    })
+
+    return {
+      taskId: task.id,
+      todayItemId,
+      stepId: firstStepId,
+    }
+  }
+
   const addTaskToToday = (taskId: string) => {
     const task = safeData.taskDefs.find((item) => item.id === taskId && !item.archived)
     if (!task) return
@@ -671,6 +732,7 @@ export function useLifeApp() {
     },
     actions: {
       addTaskDefinition,
+      quickStartTodayTask,
       addTaskToToday,
       toggleTodayItemDone,
       removeTodayItem,

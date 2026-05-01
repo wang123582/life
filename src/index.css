@@ -252,6 +252,29 @@ button {
   font-size: 22px;
 }
 
+.quick-start-card {
+  display: grid;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(110, 132, 255, 0.18);
+  background: linear-gradient(135deg, rgba(110, 132, 255, 0.12), rgba(88, 205, 170, 0.08));
+}
+
+.quick-start-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 18px;
+  color: #dbe5ff;
+}
+
+.quick-start-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .context-reminder p,
 .goal-banner p {
   margin: 8px 0 0;
@@ -894,6 +917,14 @@ button:disabled {
   margin-bottom: 10px;
 }
 
+.top-space {
+  margin-top: 12px;
+}
+
+.nested-details {
+  margin-top: 4px;
+}
+
 .details-actions {
   display: flex;
   justify-content: flex-end;
@@ -1160,6 +1191,10 @@ button:disabled {
 
   .task-mobile-preview {
     padding: 10px 12px;
+  }
+
+  .quick-start-actions > button {
+    width: 100%;
   }
 
   .column-side.mobile-hidden {

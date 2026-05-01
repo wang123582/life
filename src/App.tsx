@@ -13,7 +13,7 @@ import type { DifficultyType, ReviewInput, StateType, TabKey, TodayItem } from '
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'today', label: '今天' },
   { key: 'pool', label: '任务池' },
-  { key: 'templates', label: '模板' },
+  { key: 'templates', label: '设置' },
   { key: 'review', label: '复盘' },
 ]
 
@@ -95,6 +95,8 @@ function App() {
   const [difficultyType, setDifficultyType] = useState<DifficultyType>('too_big')
   const [difficultyNote, setDifficultyNote] = useState('')
   const [nextAction, setNextAction] = useState('')
+  const [quickStartTitle, setQuickStartTitle] = useState('')
+  const [quickStartStep, setQuickStartStep] = useState('')
   const [dailySlots, setDailySlots] = useState(String(data.dailyTemplate.topTaskSlots))
   const [dailyRoutines, setDailyRoutines] = useState(String(data.dailyTemplate.routineSlots))
   const [dailyAvoids, setDailyAvoids] = useState(String(data.dailyTemplate.avoidSlots))
@@ -406,6 +408,27 @@ function App() {
   const toggleTaskExpand = (itemId: string) => {
     setSelectedItemId(itemId)
     setExpandedTaskId((prev) => (prev === itemId ? '' : itemId))
+  }
+
+  const handleQuickStart = (startImmediately = false) => {
+    const created = actions.quickStartTodayTask(quickStartTitle, quickStartStep)
+
+    if (!created) {
+      return
+    }
+
+    setQuickStartTitle('')
+    setQuickStartStep('')
+    setActiveTab('today')
+    setSelectedItemId(created.todayItemId)
+
+    if (isMobileLayout) {
+      setExpandedTaskId(created.todayItemId)
+    }
+
+    if (startImmediately) {
+      actions.startFocusTimer(created.todayItemId, created.stepId)
+    }
   }
 
   const handleAddTaskDefinition = (event: React.FormEvent<HTMLFormElement>) => {
@@ -887,6 +910,46 @@ function App() {
               </Section>
 
               <Section
+                kicker="Quick start"
+                title="别研究全部，先开一件事"
+                subtitle="第一次用时，只做三步：写下最重要的一件事、补一个最小动作、直接开始。"
+              >
+                <div className="quick-start-card">
+                  <ol className="quick-start-steps">
+                    <li>先写今天最重要的一件事。</li>
+                    <li>再写一个小到能立刻开始的动作。</li>
+                    <li>点“直接开始”，别再切来切去。</li>
+                  </ol>
+                  <div className="stack-form">
+                    <label>
+                      今天最重要的一件事
+                      <input
+                        value={quickStartTitle}
+                        onChange={(event) => setQuickStartTitle(event.target.value)}
+                        placeholder="例如：把简历的自我介绍改完"
+                      />
+                    </label>
+                    <label>
+                      现在只做这一步（可选）
+                      <input
+                        value={quickStartStep}
+                        onChange={(event) => setQuickStartStep(event.target.value)}
+                        placeholder="例如：先写第一段，不求完整"
+                      />
+                    </label>
+                    <div className="quick-start-actions">
+                      <button type="button" className="ghost-button" onClick={() => handleQuickStart(false)} disabled={!quickStartTitle.trim()}>
+                        先放进今天
+                      </button>
+                      <button type="button" className="primary-button" onClick={() => handleQuickStart(true)} disabled={!quickStartTitle.trim()}>
+                        直接开始 25 分钟
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Section>
+
+              <Section
                 kicker="Execution"
                 title="今天要做什么"
                 subtitle="从任务池拖进今天后，给每个任务至少拆一个最小动作。"
@@ -1132,80 +1195,86 @@ function App() {
                 </div>
               </Section>
 
-              <Section kicker="State" title="状态与交流" subtitle="把状态记录和人与人连接放在一个地方，不再分成很多块。">
+              <Section kicker="Support" title="卡住了再展开" subtitle="默认先做事。只有在卡住、失守或想复盘时，再展开下面这些。">
                 <div className="compact-stack">
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={dayPlan.communicationDone}
-                      onChange={(event) => actions.setCommunication(event.target.checked, communicationNote)}
-                    />
-                    <span>今天已经主动和一个人认真交流过</span>
-                  </label>
-                  <textarea
-                    value={communicationNote}
-                    onChange={(event) => setCommunicationNote(event.target.value)}
-                    onBlur={() => actions.setCommunication(dayPlan.communicationDone, communicationNote)}
-                    placeholder="记一下你联系了谁，或者准备联系谁。"
-                    rows={3}
-                  />
-
-                  <form className="stack-form" onSubmit={handleAddState}>
-                    <label>
-                      当前状态
-                      <select value={stateType} onChange={(event) => setStateType(event.target.value as StateType)}>
-                        {Object.entries(stateTemplateLabels).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      诱因
-                      <input value={stateTrigger} onChange={(event) => setStateTrigger(event.target.value)} placeholder="例如：刷了一会儿手机后停不下来" />
-                    </label>
-                    <label>
-                      应对
-                      <input value={stateResponse} onChange={(event) => setStateResponse(event.target.value)} placeholder="例如：先走动 5 分钟再回来" />
-                    </label>
-                    <div className="inline-grid compact-inline-grid">
-                      <label>
-                        结果
-                        <select value={stateResult} onChange={(event) => setStateResult(event.target.value as 'better' | 'same' | 'worse')}>
-                          <option value="better">变好了</option>
-                          <option value="same">差不多</option>
-                          <option value="worse">更糟了</option>
-                        </select>
+                  <details className="info-details">
+                    <summary>展开状态与交流</summary>
+                    <div className="stack-form top-space">
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={dayPlan.communicationDone}
+                          onChange={(event) => actions.setCommunication(event.target.checked, communicationNote)}
+                        />
+                        <span>今天已经主动和一个人认真交流过</span>
                       </label>
-                      <button type="submit" className="primary-button">
-                        记下状态
-                      </button>
+                      <textarea
+                        value={communicationNote}
+                        onChange={(event) => setCommunicationNote(event.target.value)}
+                        onBlur={() => actions.setCommunication(dayPlan.communicationDone, communicationNote)}
+                        placeholder="记一下你联系了谁，或者准备联系谁。"
+                        rows={3}
+                      />
+
+                      <form className="stack-form" onSubmit={handleAddState}>
+                        <label>
+                          当前状态
+                          <select value={stateType} onChange={(event) => setStateType(event.target.value as StateType)}>
+                            {Object.entries(stateTemplateLabels).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          诱因
+                          <input value={stateTrigger} onChange={(event) => setStateTrigger(event.target.value)} placeholder="例如：刷了一会儿手机后停不下来" />
+                        </label>
+                        <label>
+                          应对
+                          <input value={stateResponse} onChange={(event) => setStateResponse(event.target.value)} placeholder="例如：先走动 5 分钟再回来" />
+                        </label>
+                        <div className="inline-grid compact-inline-grid">
+                          <label>
+                            结果
+                            <select value={stateResult} onChange={(event) => setStateResult(event.target.value as 'better' | 'same' | 'worse')}>
+                              <option value="better">变好了</option>
+                              <option value="same">差不多</option>
+                              <option value="worse">更糟了</option>
+                            </select>
+                          </label>
+                          <button type="submit" className="primary-button">
+                            记下状态
+                          </button>
+                        </div>
+                      </form>
+
+                      <ul className="log-list compact-log-list">
+                        {todayStateRecords.slice(0, 3).map((record) => (
+                          <li key={record.id}>
+                            <strong>{stateTemplateLabels[record.stateType]}</strong>
+                            <span>{record.trigger || '未写诱因'}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </form>
+                  </details>
 
-                  <ul className="log-list compact-log-list">
-                    {todayStateRecords.slice(0, 3).map((record) => (
-                      <li key={record.id}>
-                        <strong>{stateTemplateLabels[record.stateType]}</strong>
-                        <span>{record.trigger || '未写诱因'}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <details className="info-details">
+                    <summary>展开卡点记录</summary>
+                    <ul className="log-list highlight-log-list top-space">
+                      {todayDifficultyRecords.length === 0 ? <li>现在还没有卡点记录。</li> : null}
+                      {todayDifficultyRecords.slice(0, 4).map((record) => (
+                        <li key={record.id}>
+                          <strong>{difficultyTemplateLabels[record.type]}</strong>
+                          <span>{record.note || '这轮没有写清具体卡点。'}</span>
+                          <span>下一步：{record.nextAction || '还没写下一步。'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                 </div>
-              </Section>
-
-              <Section kicker="Blockers" title="卡在哪里" subtitle="这里专门放你每一轮卡住的位置和下一步，不让它们消失。">
-                <ul className="log-list highlight-log-list">
-                  {todayDifficultyRecords.length === 0 ? <li>现在还没有卡点记录。</li> : null}
-                  {todayDifficultyRecords.slice(0, 4).map((record) => (
-                    <li key={record.id}>
-                      <strong>{difficultyTemplateLabels[record.type]}</strong>
-                      <span>{record.note || '这轮没有写清具体卡点。'}</span>
-                      <span>下一步：{record.nextAction || '还没写下一步。'}</span>
-                    </li>
-                  ))}
-                </ul>
               </Section>
             </div>
           </div>
@@ -1301,7 +1370,7 @@ function App() {
         {activeTab === 'templates' ? (
           <div className="page-grid narrow">
             <div className="column-main">
-              <Section title="日 / 周模板" subtitle="固定模板是为了让你不用每天面对空白页面发愣。">
+              <Section title="核心设置" subtitle="大多数时候只要把今天任务控制少一点，别一上来改一堆选项。">
                 <div className="stack-form">
                   <div className="inline-grid triple">
                     <label>
@@ -1313,43 +1382,49 @@ function App() {
                       <input value={dailyRoutines} onChange={(event) => setDailyRoutines(event.target.value)} />
                     </label>
                     <label>
-                      今日不做条数
-                      <input value={dailyAvoids} onChange={(event) => setDailyAvoids(event.target.value)} />
+                      放松窗口分钟数
+                      <input value={dailyRelaxMinutes} onChange={(event) => setDailyRelaxMinutes(event.target.value)} />
                     </label>
                   </div>
-                  <label>
-                    今日交流提示
-                    <input value={dailyPrompt} onChange={(event) => setDailyPrompt(event.target.value)} />
-                  </label>
-                  <label>
-                    放松窗口分钟数
-                    <input value={dailyRelaxMinutes} onChange={(event) => setDailyRelaxMinutes(event.target.value)} />
-                  </label>
-                  <label>
-                    每周 3 个方向（每行一项）
-                    <textarea rows={4} value={weeklyDirections} onChange={(event) => setWeeklyDirections(event.target.value)} />
-                  </label>
-                  <label>
-                    本周最容易失守的场景（每行一项）
-                    <textarea rows={4} value={weeklyRisks} onChange={(event) => setWeeklyRisks(event.target.value)} />
-                  </label>
-                  <label>
-                    本周交流目标
-                    <input value={weeklyCommunicationGoal} onChange={(event) => setWeeklyCommunicationGoal(event.target.value)} />
-                  </label>
-                  <label>
-                    本周休息安排
-                    <input value={weeklyRestPlan} onChange={(event) => setWeeklyRestPlan(event.target.value)} />
-                  </label>
+                  <p className="muted">如果你刚开始用，建议保持默认：3 个核心任务、2 个生活提醒，其他先别动。</p>
+                  <details className="info-details">
+                    <summary>展开长期模板和节奏设置</summary>
+                    <div className="stack-form top-space">
+                      <label>
+                        今日不做条数
+                        <input value={dailyAvoids} onChange={(event) => setDailyAvoids(event.target.value)} />
+                      </label>
+                      <label>
+                        今日交流提示
+                        <input value={dailyPrompt} onChange={(event) => setDailyPrompt(event.target.value)} />
+                      </label>
+                      <label>
+                        每周 3 个方向（每行一项）
+                        <textarea rows={4} value={weeklyDirections} onChange={(event) => setWeeklyDirections(event.target.value)} />
+                      </label>
+                      <label>
+                        本周最容易失守的场景（每行一项）
+                        <textarea rows={4} value={weeklyRisks} onChange={(event) => setWeeklyRisks(event.target.value)} />
+                      </label>
+                      <label>
+                        本周交流目标
+                        <input value={weeklyCommunicationGoal} onChange={(event) => setWeeklyCommunicationGoal(event.target.value)} />
+                      </label>
+                      <label>
+                        本周休息安排
+                        <input value={weeklyRestPlan} onChange={(event) => setWeeklyRestPlan(event.target.value)} />
+                      </label>
+                    </div>
+                  </details>
                   <button type="button" className="primary-button" onClick={handleSaveTemplates}>
-                    保存模板
+                    保存核心设置
                   </button>
                 </div>
               </Section>
             </div>
 
             <div className="column-side">
-              <Section title="设备 / 同步 / 提醒" subtitle="把跨端同步、手机计时和干预放在一个地方，少一点分散设置。">
+              <Section title="设备与提醒" subtitle="先让这台设备能顺手用。跨端同步、应用锁、飞书都放到下面按需展开。">
                 <div className="stack-form">
                   <div className="sync-summary-card">
                     <div>
@@ -1360,187 +1435,207 @@ function App() {
                     </div>
                     <p>
                       {!sync.envReady
-                        ? '先把 Supabase 地址和 key 配好。'
+                        ? '如果你暂时只在一台设备上用，可以先不管同步。'
                         : data.settings.syncEnabled
                           ? '手机和电脑填同一个同步空间码，就会共用一份数据。'
-                          : '把同步开关打开后，这台设备才会开始连云端。'}
+                          : '想让手机和电脑互通时，再打开同步。'}
                     </p>
                   </div>
                   <label>
                     这台设备叫什么
                     <input value={syncDeviceName} onChange={(event) => setSyncDeviceName(event.target.value)} placeholder="例如：我的手机 / 家里电脑" />
                   </label>
-                  <label>
-                    同步空间码
-                    <input value={syncSpaceId} onChange={(event) => setSyncSpaceId(event.target.value.toUpperCase())} placeholder="例如：ABCD-EFGH" />
-                  </label>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={data.settings.syncEnabled}
-                      onChange={(event) => actions.updateSettings({ syncEnabled: event.target.checked })}
-                    />
-                    <span>开启手机和电脑共用同一份数据</span>
-                  </label>
-                  <div className="feishu-actions compact-actions-grid">
-                    <button type="button" className="ghost-button" onClick={handleCreateSyncSpace}>
-                      生成同步码
-                    </button>
-                    <button type="button" className="ghost-button" onClick={handleCopySyncCode} disabled={!syncSpaceId.trim()}>
-                      {syncCodeCopied ? '已复制同步码' : '复制同步码'}
-                    </button>
-                    <button type="button" className="ghost-button" onClick={handlePullCloud}>
-                      从云端拉下来
-                    </button>
-                    <button type="button" className="primary-button" onClick={handlePushCloud}>
-                      上传这台设备数据
-                    </button>
-                  </div>
-                  {sync.message ? (
-                    <p className={sync.status === 'error' ? 'sync-status error' : 'sync-status success'}>{sync.message}</p>
-                  ) : null}
-                  <ul className="bullet-list compact-bullet-list">
-                    <li>先在 Supabase 执行建表 SQL，再把 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY` 配到本地和 Cloudflare Pages。</li>
-                    <li>第一次用：先在一台设备上生成同步码，再去另一台填同一个码。</li>
-                    <li>先点“上传这台设备数据”，再到另一台点“从云端拉下来”。</li>
-                    <li>如果你主要在手机上用，就把设备名称写成“手机”，排查起来更清楚。</li>
-                  </ul>
-                  {!isSyncEnvReady() ? (
-                    <p className="sync-status error">跨端同步已经接进去了，但还要先把 `.env` 里的 Supabase 地址和 key 填上。</p>
-                  ) : null}
                   <label className="checkbox-row">
                     <input
                       type="checkbox"
                       checked={data.settings.mobileTimerEnabled}
                       onChange={(event) => actions.updateSettings({ mobileTimerEnabled: event.target.checked })}
                     />
-                    <span>手机端开启原生计时提醒（锁屏/切后台后仍会响）</span>
+                    <span>手机端开启原生计时提醒（锁屏 / 切后台后仍会响）</span>
                   </label>
-                  <button type="button" className="ghost-button" onClick={handleEnableNativeTimer}>
-                    申请手机计时权限
-                  </button>
-                  <button type="button" className="ghost-button" onClick={handleTestNativeTimer}>
-                    测试手机原生计时
-                  </button>
+                  <div className="feishu-actions compact-actions-grid">
+                    <button type="button" className="ghost-button" onClick={handleEnableNativeTimer}>
+                      申请提醒权限
+                    </button>
+                    <button type="button" className="ghost-button" onClick={handleTestNativeTimer}>
+                      测试手机提醒
+                    </button>
+                  </div>
                   {nativeTimerMessage ? (
                     <p className={nativeTimerStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{nativeTimerMessage}</p>
                   ) : null}
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={data.settings.appLockEnabled}
-                      onChange={(event) => actions.updateSettings({ appLockEnabled: event.target.checked })}
-                    />
-                    <span>专注时锁定黑名单应用（安卓）</span>
-                  </label>
-                  <div className="feishu-actions compact-actions-grid">
-                    <button type="button" className="ghost-button" onClick={handleOpenFocusLockSettings}>
-                      打开无障碍设置
-                    </button>
-                    <button type="button" className="ghost-button" onClick={handleCheckFocusLockStatus}>
-                      检查应用锁状态
-                    </button>
-                  </div>
-                  <p className="muted">当前状态：{focusLockAvailable ? (focusLockServiceEnabled ? '应用锁定服务已开启' : '还没开启应用锁定服务') : '只在安卓安装包里可用'}</p>
-                  {focusLockMessage ? (
-                    <p className={focusLockStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{focusLockMessage}</p>
-                  ) : null}
-                  <ul className="bullet-list compact-bullet-list">
-                    <li>测试应用锁定时，先开始一轮专注，再去点开黑名单应用。</li>
-                    <li>如果没被拦住，先检查无障碍服务状态，再确认黑名单里填的是应用名或包名。</li>
-                  </ul>
-                  <label>
-                    干预等级
-                    <select
-                      value={data.settings.blockerLevel}
-                      onChange={(event) => actions.updateSettings({ blockerLevel: event.target.value as 'light' | 'soft' | 'hard' })}
-                    >
-                      <option value="light">轻提醒</option>
-                      <option value="soft">软阻断</option>
-                      <option value="hard">硬阻断（文字上先约束）</option>
-                    </select>
-                  </label>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={data.settings.encouragementEnabled}
-                      onChange={(event) => actions.updateSettings({ encouragementEnabled: event.target.checked })}
-                    />
-                    <span>开启鼓励提醒</span>
-                  </label>
+
                   <details className="info-details">
-                    <summary>展开 Supabase 建表 SQL</summary>
-                    <div className="details-actions">
-                      <button type="button" className="ghost-button compact-action-button" onClick={handleCopySyncSql}>
-                        {syncSqlCopied ? '已复制 SQL' : '复制 SQL'}
+                    <summary>展开手机和电脑同步</summary>
+                    <div className="stack-form top-space">
+                      <label>
+                        同步空间码
+                        <input value={syncSpaceId} onChange={(event) => setSyncSpaceId(event.target.value.toUpperCase())} placeholder="例如：ABCD-EFGH" />
+                      </label>
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={data.settings.syncEnabled}
+                          onChange={(event) => actions.updateSettings({ syncEnabled: event.target.checked })}
+                        />
+                        <span>开启手机和电脑共用同一份数据</span>
+                      </label>
+                      <div className="feishu-actions compact-actions-grid">
+                        <button type="button" className="ghost-button" onClick={handleCreateSyncSpace}>
+                          生成同步码
+                        </button>
+                        <button type="button" className="ghost-button" onClick={handleCopySyncCode} disabled={!syncSpaceId.trim()}>
+                          {syncCodeCopied ? '已复制同步码' : '复制同步码'}
+                        </button>
+                        <button type="button" className="ghost-button" onClick={handlePullCloud}>
+                          从云端拉下来
+                        </button>
+                        <button type="button" className="primary-button" onClick={handlePushCloud}>
+                          上传这台设备数据
+                        </button>
+                      </div>
+                      {sync.message ? (
+                        <p className={sync.status === 'error' ? 'sync-status error' : 'sync-status success'}>{sync.message}</p>
+                      ) : null}
+                      <ul className="bullet-list compact-bullet-list">
+                        <li>第一次用：先在一台设备上生成同步码，再去另一台填同一个码。</li>
+                        <li>先点“上传这台设备数据”，再到另一台点“从云端拉下来”。</li>
+                        <li>只有真要跨设备时，才需要配 Supabase。</li>
+                      </ul>
+                      {!isSyncEnvReady() ? (
+                        <p className="sync-status error">跨端同步已经接进去了，但还要先把 `.env` 里的 Supabase 地址和 key 填上。</p>
+                      ) : null}
+                      <details className="info-details nested-details">
+                        <summary>展开 Supabase 建表 SQL</summary>
+                        <div className="details-actions">
+                          <button type="button" className="ghost-button compact-action-button" onClick={handleCopySyncSql}>
+                            {syncSqlCopied ? '已复制 SQL' : '复制 SQL'}
+                          </button>
+                        </div>
+                        <p className="muted">Supabase 里执行这段 SQL 后，同步才会真正可用：</p>
+                        <pre className="code-block">{syncSetupSql}</pre>
+                      </details>
+                    </div>
+                  </details>
+
+                  <details className="info-details">
+                    <summary>展开专注防分心（安卓）</summary>
+                    <div className="stack-form top-space">
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={data.settings.appLockEnabled}
+                          onChange={(event) => actions.updateSettings({ appLockEnabled: event.target.checked })}
+                        />
+                        <span>专注时锁定黑名单应用（安卓）</span>
+                      </label>
+                      <div className="feishu-actions compact-actions-grid">
+                        <button type="button" className="ghost-button" onClick={handleOpenFocusLockSettings}>
+                          打开无障碍设置
+                        </button>
+                        <button type="button" className="ghost-button" onClick={handleCheckFocusLockStatus}>
+                          检查应用锁状态
+                        </button>
+                      </div>
+                      <p className="muted">当前状态：{focusLockAvailable ? (focusLockServiceEnabled ? '应用锁定服务已开启' : '还没开启应用锁定服务') : '只在安卓安装包里可用'}</p>
+                      {focusLockMessage ? (
+                        <p className={focusLockStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{focusLockMessage}</p>
+                      ) : null}
+                      <ul className="bullet-list compact-bullet-list">
+                        <li>测试应用锁定时，先开始一轮专注，再去点开黑名单应用。</li>
+                        <li>如果没被拦住，先检查无障碍服务状态，再确认黑名单里填的是应用名或包名。</li>
+                      </ul>
+                      <label>
+                        干预等级
+                        <select
+                          value={data.settings.blockerLevel}
+                          onChange={(event) => actions.updateSettings({ blockerLevel: event.target.value as 'light' | 'soft' | 'hard' })}
+                        >
+                          <option value="light">轻提醒</option>
+                          <option value="soft">软阻断</option>
+                          <option value="hard">硬阻断（文字上先约束）</option>
+                        </select>
+                      </label>
+                      <label>
+                        需要重点防的应用 / 网站（每行一项）
+                        <textarea rows={5} value={blockedTargets} onChange={(event) => setBlockedTargets(event.target.value)} />
+                      </label>
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={data.settings.encouragementEnabled}
+                          onChange={(event) => actions.updateSettings({ encouragementEnabled: event.target.checked })}
+                        />
+                        <span>开启鼓励提醒</span>
+                      </label>
+                      <div className="chip-list compact-chip-list">
+                        {data.settings.blockedTargets.map((target) => (
+                          <span key={target} className="chip warning">
+                            {target}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+
+                  <details className="info-details">
+                    <summary>展开飞书同步（可选）</summary>
+                    <div className="stack-form top-space">
+                      <label>
+                        飞书 webhook 地址
+                        <input
+                          value={feishuWebhookUrl}
+                          onChange={(event) => setFeishuWebhookUrl(event.target.value)}
+                          placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                        />
+                      </label>
+                      <label>
+                        关键词（可选）
+                        <input
+                          value={feishuKeyword}
+                          onChange={(event) => setFeishuKeyword(event.target.value)}
+                          placeholder="如果机器人设置了关键词，就填这里"
+                        />
+                      </label>
+                      <label>
+                        签名密钥（可选）
+                        <input
+                          value={feishuSecret}
+                          onChange={(event) => setFeishuSecret(event.target.value)}
+                          placeholder="如果机器人开启签名校验，就填这里"
+                        />
+                      </label>
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={data.settings.feishuAutoSyncReview}
+                          onChange={(event) => actions.updateSettings({ feishuAutoSyncReview: event.target.checked })}
+                        />
+                        <span>保存复盘后自动同步到飞书</span>
+                      </label>
+                      <div className="feishu-actions">
+                        <button type="button" className="primary-button" onClick={handleTestFeishuConnection} disabled={isTestingFeishu}>
+                          {isTestingFeishu ? '正在测试连接…' : '测试飞书连接'}
+                        </button>
+                        <button type="button" className="ghost-button" onClick={handleSaveTemplates}>
+                          保存飞书配置
+                        </button>
+                      </div>
+                      {feishuTestMessage ? (
+                        <p className={feishuTestStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{feishuTestMessage}</p>
+                      ) : null}
+                      <p className="muted">这一项纯属可选。先把今天用顺了，再回来接飞书也不迟。</p>
+                    </div>
+                  </details>
+
+                  <details className="info-details">
+                    <summary>展开更多操作</summary>
+                    <div className="top-space">
+                      <button type="button" className="ghost-button danger" onClick={actions.resetAll}>
+                        重置全部数据
                       </button>
                     </div>
-                    <p className="muted">Supabase 里执行这段 SQL 后，同步才会真正可用：</p>
-                    <pre className="code-block">{syncSetupSql}</pre>
                   </details>
-                  <details className="info-details">
-                    <summary>展开黑名单和干预细节</summary>
-                    <label>
-                      需要重点防的应用 / 网站（每行一项）
-                      <textarea rows={5} value={blockedTargets} onChange={(event) => setBlockedTargets(event.target.value)} />
-                    </label>
-                    <div className="chip-list compact-chip-list">
-                      {data.settings.blockedTargets.map((target) => (
-                        <span key={target} className="chip warning">
-                          {target}
-                        </span>
-                      ))}
-                    </div>
-                  </details>
-                </div>
-              </Section>
-
-              <Section title="飞书同步" subtitle="把今天总结、做完的步骤和困难日志直接发到你的飞书群机器人。">
-                <div className="stack-form">
-                  <label>
-                    飞书 webhook 地址
-                    <input
-                      value={feishuWebhookUrl}
-                      onChange={(event) => setFeishuWebhookUrl(event.target.value)}
-                      placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
-                    />
-                  </label>
-                  <label>
-                    关键词（可选）
-                    <input
-                      value={feishuKeyword}
-                      onChange={(event) => setFeishuKeyword(event.target.value)}
-                      placeholder="如果机器人设置了关键词，就填这里"
-                    />
-                  </label>
-                  <label>
-                    签名密钥（可选）
-                    <input
-                      value={feishuSecret}
-                      onChange={(event) => setFeishuSecret(event.target.value)}
-                      placeholder="如果机器人开启签名校验，就填这里"
-                    />
-                  </label>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={data.settings.feishuAutoSyncReview}
-                      onChange={(event) => actions.updateSettings({ feishuAutoSyncReview: event.target.checked })}
-                    />
-                    <span>保存复盘后自动同步到飞书</span>
-                  </label>
-                  <div className="feishu-actions">
-                    <button type="button" className="primary-button" onClick={handleTestFeishuConnection} disabled={isTestingFeishu}>
-                      {isTestingFeishu ? '正在测试连接…' : '测试飞书连接'}
-                    </button>
-                    <button type="button" className="ghost-button" onClick={handleSaveTemplates}>
-                      保存飞书配置
-                    </button>
-                  </div>
-                  {feishuTestMessage ? (
-                    <p className={feishuTestStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{feishuTestMessage}</p>
-                  ) : null}
-                  <p className="muted">飞书官方更推荐服务端调用，但你这个项目是自用型 Web 第一版，所以这里先做成直连机器人 webhook。</p>
                 </div>
               </Section>
             </div>
