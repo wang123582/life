@@ -134,6 +134,8 @@ function App() {
   const [focusLockServiceEnabled, setFocusLockServiceEnabled] = useState(false)
   const [syncCodeCopied, setSyncCodeCopied] = useState(false)
   const [syncSqlCopied, setSyncSqlCopied] = useState(false)
+  const [flashMessage, setFlashMessage] = useState('')
+  const [flashTone, setFlashTone] = useState<'info' | 'success' | 'warning'>('info')
   const [encouragementIndex, setEncouragementIndex] = useState(0)
   const [contextReminder, setContextReminder] = useState('')
   const [lastReminderKey, setLastReminderKey] = useState('')
@@ -157,6 +159,7 @@ function App() {
   const actionableTodayItems = useMemo(() => dayPlan.todayItems.filter((item) => item.kind !== 'routine'), [dayPlan.todayItems])
   const simpleRoutineItems = useMemo(() => dayPlan.todayItems.filter((item) => item.kind === 'routine'), [dayPlan.todayItems])
   const actionablePendingItems = useMemo(() => pendingTodayItems.filter((item) => item.kind !== 'routine'), [pendingTodayItems])
+  const completedTodayCount = useMemo(() => actionableTodayItems.filter((item) => item.isDone).length, [actionableTodayItems])
   const primaryTodayItem = actionablePendingItems[0] ?? actionableTodayItems[0]
   const primaryStep = primaryTodayItem?.steps.find((step) => !step.isDone)
   const primaryAvoid = dayPlan.avoidItems.find((item) => !item.isDone)?.text ?? data.ruleDefs.find((rule) => rule.type === 'avoid')?.text
@@ -166,6 +169,46 @@ function App() {
   const activeTimerRange = activeTimer
     ? `${dayjs(activeTimer.startedAt).format('HH:mm')} - ${dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute').format('HH:mm')}`
     : ''
+
+  const feedbackSummary = useMemo(() => {
+    if (activeTimer) {
+      return {
+        tone: 'success' as const,
+        title: '正在推进中',
+        message: `别切走，这一轮先把 ${activeStep?.title ?? activeItem?.title ?? '当前动作'} 做掉。`,
+      }
+    }
+
+    if (!primaryTodayItem) {
+      return {
+        tone: 'warning' as const,
+        title: '先定一件事',
+        message: '先写一件今天最重要的事，再点开始，别让页面把你拖住。',
+      }
+    }
+
+    if (!primaryStep) {
+      return {
+        tone: 'info' as const,
+        title: '已经进入状态了',
+        message: `你已经选了「${primaryTodayItem.title}」，再补一个最小动作就能开工。`,
+      }
+    }
+
+    if (completedTodayCount > 0) {
+      return {
+        tone: 'success' as const,
+        title: '今天已经有推进',
+        message: `已完成 ${completedTodayCount} 件，下一步就回到「${primaryStep.title}」。`,
+      }
+    }
+
+    return {
+      tone: 'info' as const,
+      title: '现在就够了',
+      message: `先做「${primaryStep.title}」，不用把所有功能都看懂。`,
+    }
+  }, [activeItem, activeStep, activeTimer, completedTodayCount, primaryStep, primaryTodayItem])
 
   useEffect(() => {
     setCommunicationNote(dayPlan.communicationNote)
@@ -205,6 +248,16 @@ function App() {
 
     return () => window.clearInterval(timerId)
   }, [data.settings.encouragementEnabled])
+
+  useEffect(() => {
+    if (!flashMessage) {
+      return
+    }
+
+    const timerId = window.setTimeout(() => setFlashMessage(''), 2400)
+
+    return () => window.clearTimeout(timerId)
+  }, [flashMessage])
 
   useEffect(() => {
     if (!activeTimer || remainingSeconds > 0 || finishOpen) return
@@ -376,7 +429,7 @@ function App() {
 
   const summary = {
     total: actionableTodayItems.length,
-    done: actionableTodayItems.filter((item) => item.isDone).length,
+    done: completedTodayCount,
     avoidDone: dayPlan.avoidItems.filter((item) => item.isDone).length,
     focusCount: todayFocusSessions.filter((session) => session.status === 'completed').length,
   }
@@ -428,7 +481,13 @@ function App() {
 
     if (startImmediately) {
       actions.startFocusTimer(created.todayItemId, created.stepId)
+      setFlashTone('success')
+      setFlashMessage('已经帮你放进今天，并直接开始这一轮专注。')
+      return
     }
+
+    setFlashTone('success')
+    setFlashMessage('已经放进今天。现在只要点开它，继续下一步就行。')
   }
 
   const handleAddTaskDefinition = (event: React.FormEvent<HTMLFormElement>) => {
@@ -506,6 +565,8 @@ function App() {
       feishuKeyword: feishuKeyword.trim(),
       feishuSecret: feishuSecret.trim(),
     })
+    setFlashTone('success')
+    setFlashMessage('设置已经保存。先回到今天页继续做事就行。')
   }
 
   const syncTodayToFeishu = async (reviewPayload: typeof dayPlan.review) => {
@@ -707,12 +768,16 @@ function App() {
 
     await navigator.clipboard.writeText(syncSpaceId.trim().toUpperCase())
     setSyncCodeCopied(true)
+    setFlashTone('info')
+    setFlashMessage('同步码已复制，去另一台设备直接粘贴就行。')
     window.setTimeout(() => setSyncCodeCopied(false), 2000)
   }
 
   const handleCopySyncSql = async () => {
     await navigator.clipboard.writeText(syncSetupSql)
     setSyncSqlCopied(true)
+    setFlashTone('info')
+    setFlashMessage('建表 SQL 已复制。去 Supabase 执行后，同步才会真正生效。')
     window.setTimeout(() => setSyncSqlCopied(false), 2000)
   }
 
@@ -852,6 +917,15 @@ function App() {
             </div>
           </div>
         ) : null}
+
+        <div className={`feedback-strip ${feedbackSummary.tone}`}>
+          <div>
+            <span className="muted-label">即时反馈</span>
+            <strong>{feedbackSummary.title}</strong>
+            <p>{feedbackSummary.message}</p>
+          </div>
+          {flashMessage ? <span className={`feedback-badge ${flashTone}`}>{flashMessage}</span> : null}
+        </div>
 
         {activeTab === 'today' ? (
           <div className="page-grid">

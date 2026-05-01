@@ -19,8 +19,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(92, 112, 255, 0.32), transparent 30%),
-    radial-gradient(circle at 85% 10%, rgba(77, 208, 170, 0.12), transparent 22%),
+    radial-gradient(circle at top, rgba(101, 181, 255, 0.4), transparent 32%),
+    radial-gradient(circle at 85% 10%, rgba(91, 227, 195, 0.18), transparent 24%),
+    radial-gradient(circle at 15% 20%, rgba(255, 196, 98, 0.14), transparent 18%),
     linear-gradient(180deg, #0b1020 0%, #090d18 100%);
 }
 
@@ -106,7 +107,7 @@ button {
 }
 
 .nav-button.active {
-  background: linear-gradient(135deg, #5568ff, #7b61ff);
+  background: linear-gradient(135deg, #4f9dff, #7b61ff);
   color: white;
   transform: translateX(4px);
 }
@@ -119,7 +120,7 @@ button {
 .floating-timer,
 .modal {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(14, 18, 36, 0.86);
+  background: rgba(18, 24, 46, 0.88);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
 }
 
@@ -197,8 +198,64 @@ button {
 
 .topbar-tag.warning {
   border-color: rgba(255, 189, 89, 0.18);
-  background: rgba(255, 189, 89, 0.1);
+  background: rgba(255, 189, 89, 0.16);
   color: #ffd48f;
+}
+
+.feedback-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.feedback-strip strong {
+  display: block;
+  font-size: 20px;
+}
+
+.feedback-strip p {
+  margin: 8px 0 0;
+}
+
+.feedback-strip.info {
+  background: linear-gradient(135deg, rgba(79, 157, 255, 0.18), rgba(123, 97, 255, 0.12));
+  border-color: rgba(79, 157, 255, 0.22);
+}
+
+.feedback-strip.success {
+  background: linear-gradient(135deg, rgba(88, 224, 180, 0.18), rgba(79, 157, 255, 0.12));
+  border-color: rgba(88, 224, 180, 0.24);
+}
+
+.feedback-strip.warning {
+  background: linear-gradient(135deg, rgba(255, 196, 98, 0.18), rgba(255, 122, 122, 0.12));
+  border-color: rgba(255, 196, 98, 0.24);
+}
+
+.feedback-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 320px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-weight: 600;
+  color: #eef4ff;
+}
+
+.feedback-badge.info {
+  background: rgba(79, 157, 255, 0.18);
+}
+
+.feedback-badge.success {
+  background: rgba(88, 224, 180, 0.18);
+}
+
+.feedback-badge.warning {
+  background: rgba(255, 196, 98, 0.18);
 }
 
 .topbar-actions {
@@ -628,8 +685,8 @@ button:disabled {
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #5f75ff, #8e63ff);
-  box-shadow: 0 12px 24px rgba(95, 117, 255, 0.24);
+  background: linear-gradient(135deg, #46a6ff, #8e63ff);
+  box-shadow: 0 12px 24px rgba(70, 166, 255, 0.28);
 }
 
 .ghost-button,
@@ -881,8 +938,8 @@ button:disabled {
 .sync-summary-card {
   padding: 14px;
   border-radius: 18px;
-  border: 1px solid rgba(110, 132, 255, 0.16);
-  background: linear-gradient(135deg, rgba(110, 132, 255, 0.14), rgba(88, 205, 170, 0.08));
+  border: 1px solid rgba(79, 157, 255, 0.2);
+  background: linear-gradient(135deg, rgba(79, 157, 255, 0.16), rgba(88, 224, 180, 0.1));
 }
 
 .sync-summary-card strong {
@@ -1137,6 +1194,7 @@ button:disabled {
   .topbar,
   .context-reminder,
   .goal-banner,
+  .feedback-strip,
   .focus-strip,
   .panel-header,
   .task-card-top,
@@ -1195,6 +1253,10 @@ button:disabled {
 
   .quick-start-actions > button {
     width: 100%;
+  }
+
+  .feedback-badge {
+    max-width: 100%;
   }
 
   .column-side.mobile-hidden {
