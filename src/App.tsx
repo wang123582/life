@@ -146,7 +146,10 @@ function App() {
     () => activeItem?.steps.find((step) => step.id === activeTimer?.stepId),
     [activeItem, activeTimer],
   )
-  const primaryTodayItem = pendingTodayItems[0] ?? dayPlan.todayItems[0]
+  const actionableTodayItems = useMemo(() => dayPlan.todayItems.filter((item) => item.kind !== 'routine'), [dayPlan.todayItems])
+  const simpleRoutineItems = useMemo(() => dayPlan.todayItems.filter((item) => item.kind === 'routine'), [dayPlan.todayItems])
+  const actionablePendingItems = useMemo(() => pendingTodayItems.filter((item) => item.kind !== 'routine'), [pendingTodayItems])
+  const primaryTodayItem = actionablePendingItems[0] ?? actionableTodayItems[0]
   const primaryStep = primaryTodayItem?.steps.find((step) => !step.isDone)
   const primaryAvoid = dayPlan.avoidItems.find((item) => !item.isDone)?.text ?? data.ruleDefs.find((rule) => rule.type === 'avoid')?.text
   const primaryRule = data.ruleDefs.find((rule) => rule.type === 'do')?.text
@@ -181,9 +184,9 @@ function App() {
   }, [data.settings.syncSpaceId, data.settings.syncDeviceName])
 
   useEffect(() => {
-    const firstPendingItem = pendingTodayItems[0]?.id ?? dayPlan.todayItems[0]?.id ?? ''
+    const firstPendingItem = actionablePendingItems[0]?.id ?? actionableTodayItems[0]?.id ?? ''
     setSelectedItemId((prev) => prev || firstPendingItem)
-  }, [pendingTodayItems, dayPlan.todayItems])
+  }, [actionablePendingItems, actionableTodayItems])
 
   useEffect(() => {
     if (!data.settings.encouragementEnabled) return
@@ -341,13 +344,13 @@ function App() {
   }, [activeTimer, data.taskDefs, dayKey, dayPlan.todayItems, lastInteractionAt, lastReminderKey, primaryStep, primaryTodayItem])
 
   const summary = {
-    total: dayPlan.todayItems.length,
-    done: dayPlan.todayItems.filter((item) => item.isDone).length,
+    total: actionableTodayItems.length,
+    done: actionableTodayItems.filter((item) => item.isDone).length,
     avoidDone: dayPlan.avoidItems.filter((item) => item.isDone).length,
     focusCount: todayFocusSessions.filter((session) => session.status === 'completed').length,
   }
 
-  const selectedItem = dayPlan.todayItems.find((item) => item.id === selectedItemId) ?? dayPlan.todayItems[0]
+  const selectedItem = actionableTodayItems.find((item) => item.id === selectedItemId) ?? actionableTodayItems[0]
   const completedSteps = useMemo(
     () =>
       dayPlan.todayItems.flatMap((item) =>
@@ -606,6 +609,25 @@ function App() {
     setNativeTimerMessage('没有拿到手机提醒权限，计时仍然只能停留在应用页面里。')
   }
 
+  const handleTestNativeTimer = async () => {
+    const granted = await ensureNativeTimerPermission()
+
+    if (!granted) {
+      setNativeTimerStatus('error')
+      setNativeTimerMessage('测试失败：还没有拿到手机提醒权限。')
+      return
+    }
+
+    await scheduleFocusTimerNotification({
+      endsAt: dayjs().add(15, 'second').toDate(),
+      title: 'life 测试提醒',
+      body: '如果你 15 秒后收到了这条，说明手机原生计时提醒已经能用。',
+    })
+
+    setNativeTimerStatus('success')
+    setNativeTimerMessage('已经安排了一条 15 秒后的测试提醒，锁屏也能测。')
+  }
+
   const handleCopySyncCode = async () => {
     if (!syncSpaceId.trim()) {
       return
@@ -816,7 +838,7 @@ function App() {
                 actions={<span className="muted-label">推荐保留 {data.dailyTemplate.topTaskSlots} 个核心任务</span>}
               >
                 <div className="task-list">
-                  {dayPlan.todayItems.map((item) => {
+                  {actionableTodayItems.map((item) => {
                     const firstPendingStep = item.steps.find((step) => !step.isDone)
                     const stepProgress = getStepProgress(item)
                     const progressPercent = stepProgress.total === 0 ? 0 : Math.round((stepProgress.done / stepProgress.total) * 100)
@@ -948,7 +970,32 @@ function App() {
                     )
                   })}
 
-                  {dayPlan.todayItems.length === 0 ? <p className="empty-hint">先去任务池挑 1 个任务放进今天吧。</p> : null}
+                  {actionableTodayItems.length === 0 ? <p className="empty-hint">先去任务池挑 1 个真正要推进的任务放进今天吧。</p> : null}
+                </div>
+              </Section>
+
+              <Section
+                kicker="Simple"
+                title="固定简单提醒"
+                subtitle="像吃饭、洗澡、走动这种简单事情，不再混进需要分解的主任务里，只负责按时提醒。"
+              >
+                <div className="task-list compact">
+                  {simpleRoutineItems.map((item) => {
+                    const sourceTask = data.taskDefs.find((task) => task.id === item.sourceTaskId)
+
+                    return (
+                      <article key={item.id} className="task-card compact simple-reminder-card">
+                        <div>
+                          <strong>{item.title}</strong>
+                          <p className="muted">提醒时间：{sourceTask?.scheduleTime ?? '未设置'} · 不需要分解，到了就做。</p>
+                        </div>
+                        <button type="button" className={item.isDone ? 'ghost-button compact-action-button' : 'primary-button compact-action-button'} onClick={() => actions.toggleTodayItemDone(item.id)}>
+                          {item.isDone ? '今天已完成' : '标记完成'}
+                        </button>
+                      </article>
+                    )
+                  })}
+                  {simpleRoutineItems.length === 0 ? <p className="empty-hint">还没有固定简单提醒，可以在任务池里加一个固定生活任务。</p> : null}
                 </div>
               </Section>
 
@@ -1298,6 +1345,7 @@ function App() {
                     <p className={sync.status === 'error' ? 'sync-status error' : 'sync-status success'}>{sync.message}</p>
                   ) : null}
                   <ul className="bullet-list compact-bullet-list">
+                    <li>先在 Supabase 执行建表 SQL，再把 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY` 配到本地和 Cloudflare Pages。</li>
                     <li>第一次用：先在一台设备上生成同步码，再去另一台填同一个码。</li>
                     <li>先点“上传这台设备数据”，再到另一台点“从云端拉下来”。</li>
                     <li>如果你主要在手机上用，就把设备名称写成“手机”，排查起来更清楚。</li>
@@ -1315,6 +1363,9 @@ function App() {
                   </label>
                   <button type="button" className="ghost-button" onClick={handleEnableNativeTimer}>
                     申请手机计时权限
+                  </button>
+                  <button type="button" className="ghost-button" onClick={handleTestNativeTimer}>
+                    测试手机原生计时
                   </button>
                   {nativeTimerMessage ? (
                     <p className={nativeTimerStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{nativeTimerMessage}</p>

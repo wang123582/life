@@ -354,6 +354,11 @@ button {
   gap: 12px;
 }
 
+.simple-reminder-card {
+  border-left-color: rgba(88, 205, 170, 0.48);
+  background: linear-gradient(180deg, rgba(15, 33, 40, 0.9), rgba(13, 21, 30, 0.9));
+}
+
 .task-card-heading {
   display: flex;
   gap: 12px;

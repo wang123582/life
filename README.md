@@ -955,6 +955,7 @@
 - `docs/pages.md`：页面原型说明
 - `docs/data-api.md`：数据模型与 API 草案
 - `docs/android.md`：Android 封装与打包说明
+- `docs/supabase.md`：手机和电脑同步配置说明
 
 ### 飞书现在怎么接
 
