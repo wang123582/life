@@ -896,6 +896,7 @@
 - 已在项目内准备本地 `JDK 21`（并保留 `JDK 17` 回退），Android 相关命令会自动优先使用它
 - 已在项目内准备本地 Android SDK，Gradle 不再依赖系统全局 `ANDROID_HOME`
 - 现有页面可以直接复用为 Android App 的界面层
+- 已成功生成调试安装包 `android/app/build/outputs/apk/debug/app-debug.apk`
 - 已补充 Android 常用脚本：
 	- `npm run android:sync`
 	- `npm run android:open`
@@ -904,7 +905,18 @@
 	- `npm run android:apk:release`
 	- `npm run android:bundle:release`
 
-说明：现在这已经不是“只能网页打开”的状态了，而是已经有了真正可继续打包成 Android 安装包的工程基础。当前环境在真正导出 APK 时卡在 Java 17 要求上，具体操作与说明见 `docs/android.md`。
+说明：现在这已经不是“只能网页打开”的状态了，而是已经有了真正可安装的 Android 调试包。当前最直接的下载地址是：`https://life-50r.pages.dev/downloads/life-debug.apk`。具体操作与说明见 `docs/android.md`。
+
+### APK 怎么下载
+
+如果你想直接在安卓手机上安装当前版本，可以：
+
+1. 用手机打开：`https://life-50r.pages.dev/downloads/life-debug.apk`
+2. 下载完成后点开安装包
+3. 如果系统提示安全限制，就临时允许浏览器安装未知应用
+4. 安装完成后，桌面上会出现 `life`
+
+如果你只是想先用最新版，也可以直接打开：`https://life-50r.pages.dev/`，或者把它添加到手机桌面。
 
 ### 对应文件
 
