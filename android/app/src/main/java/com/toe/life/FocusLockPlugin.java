@@ -64,11 +64,22 @@ public class FocusLockPlugin extends Plugin {
 
     private boolean isAccessibilityServiceEnabled() {
         String enabledServices = Settings.Secure.getString(getContext().getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        if (enabledServices == null) {
+        if (enabledServices == null || enabledServices.isEmpty()) {
             return false;
         }
 
         ComponentName componentName = new ComponentName(getContext(), FocusLockAccessibilityService.class);
-        return enabledServices.contains(componentName.flattenToString());
+        String fullComponentName = componentName.flattenToString();
+        String shortComponentName = componentName.flattenToShortString();
+
+        for (String service : enabledServices.split(":")) {
+            String normalized = service.trim();
+
+            if (normalized.equalsIgnoreCase(fullComponentName) || normalized.equalsIgnoreCase(shortComponentName)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
