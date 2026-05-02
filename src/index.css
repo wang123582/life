@@ -441,6 +441,13 @@ button {
   justify-content: flex-end;
 }
 
+.toggle-row {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .simple-reminder-card {
   border-left-color: rgba(88, 205, 170, 0.48);
   background: linear-gradient(180deg, rgba(15, 33, 40, 0.9), rgba(13, 21, 30, 0.9));
@@ -1212,6 +1219,10 @@ button:disabled {
   }
 
   .task-pool-actions > button {
+    width: 100%;
+  }
+
+  .toggle-row {
     width: 100%;
   }
 
