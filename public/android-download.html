@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>life Android 下载</title>
+    <meta
+      name="description"
+      content="life 安卓安装包下载页。推荐使用系统浏览器直接下载 life-android.apk；如果在微信、QQ、飞书等内置浏览器里打开，请先切到系统浏览器。"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #fff9f0;
+        --card: rgba(255, 255, 255, 0.88);
+        --text: #1f2937;
+        --muted: #6b7280;
+        --line: rgba(148, 163, 184, 0.22);
+        --accent: #ff7a59;
+        --accent-strong: #f25d2a;
+        --accent-soft: rgba(255, 122, 89, 0.12);
+        --warn-bg: rgba(245, 158, 11, 0.14);
+        --warn-text: #92400e;
+        --ok-bg: rgba(34, 197, 94, 0.12);
+        --ok-text: #166534;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(255, 214, 102, 0.4), transparent 28%),
+          linear-gradient(180deg, #fff7ed 0%, var(--bg) 100%);
+      }
+
+      main {
+        width: min(760px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .hero,
+      .card {
+        border: 1px solid var(--line);
+        background: var(--card);
+        backdrop-filter: blur(14px);
+        border-radius: 24px;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+      }
+
+      .hero {
+        padding: 28px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      h1 {
+        margin: 18px 0 12px;
+        font-size: clamp(30px, 6vw, 44px);
+        line-height: 1.08;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.7;
+      }
+
+      .hero p {
+        color: var(--muted);
+        font-size: 16px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .status {
+        display: none;
+        padding: 14px 16px;
+        border-radius: 16px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .status.warn {
+        background: var(--warn-bg);
+        color: var(--warn-text);
+      }
+
+      .status.ok {
+        background: var(--ok-bg);
+        color: var(--ok-text);
+      }
+
+      .status.show {
+        display: block;
+      }
+
+      .download-grid {
+        display: grid;
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .download-item {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .download-item strong {
+        font-size: 18px;
+      }
+
+      .download-meta {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 14px;
+        border: 1px solid transparent;
+        font-weight: 700;
+        text-decoration: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button.primary {
+        background: linear-gradient(135deg, var(--accent) 0%, #ff9f43 100%);
+        color: #fff;
+        box-shadow: 0 12px 24px rgba(242, 93, 42, 0.22);
+      }
+
+      .button.secondary {
+        border-color: var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--text);
+      }
+
+      .tips {
+        display: grid;
+        gap: 10px;
+        padding-left: 20px;
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Consolas, monospace;
+        word-break: break-all;
+        font-size: 13px;
+      }
+
+      .footer {
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      @media (max-width: 640px) {
+        main {
+          width: min(100% - 20px, 760px);
+          padding-top: 20px;
+        }
+
+        .hero,
+        .card {
+          border-radius: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <span class="badge">life · Android 下载</span>
+        <h1>先用系统浏览器打开，再下载 APK</h1>
+        <p>
+          如果你是在微信、QQ、飞书、钉钉这类内置浏览器里打开，APK 往往会被拦住，表现就是“点了没反应”或“下载失败”。
+          最稳的方式是切到系统浏览器，再点下面的下载按钮。
+        </p>
+      </section>
+
+      <div class="stack">
+        <section class="card">
+          <div id="inAppNotice" class="status warn">
+            当前看起来像是在<strong>内置浏览器</strong>里打开。请点右上角菜单，选择“在浏览器打开”后再下载。
+          </div>
+          <div id="browserNotice" class="status ok">
+            当前像是在<strong>系统浏览器</strong>里打开，可以直接下载。
+          </div>
+
+          <div class="download-grid">
+            <article class="download-item">
+              <div>
+                <strong>推荐：life-android.apk</strong>
+                <p class="download-meta">约 4.7 MB · 适合手机直接下载安装 · 推荐新链接</p>
+              </div>
+              <div class="actions">
+                <a class="button primary" href="/downloads/life-android.apk">直接下载推荐包</a>
+                <a class="button secondary" href="https://life-50r.pages.dev/downloads/life-android.apk">复制用完整链接打开</a>
+              </div>
+              <p class="mono">https://life-50r.pages.dev/downloads/life-android.apk</p>
+            </article>
+
+            <article class="download-item">
+              <div>
+                <strong>备用：life-debug.apk</strong>
+                <p class="download-meta">旧调试链接，内容一致，主要用于备用排障</p>
+              </div>
+              <div class="actions">
+                <a class="button secondary" href="/downloads/life-debug.apk">下载备用包</a>
+              </div>
+              <p class="mono">https://life-50r.pages.dev/downloads/life-debug.apk</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="card">
+          <strong>如果还是下不动，就按这个顺序试</strong>
+          <ol class="tips">
+            <li>确认不是在微信 / QQ / 飞书 / 钉钉内置浏览器里打开。</li>
+            <li>换成 Chrome、Edge 或手机自带浏览器。</li>
+            <li>切一下 Wi‑Fi / 流量，再重新打开这个页面。</li>
+            <li>如果浏览器提示“此文件可能有风险”，继续选择保留即可，这是 APK 的常见提醒。</li>
+          </ol>
+        </section>
+
+        <p class="footer">
+          下载页地址：<span class="mono">https://life-50r.pages.dev/android-download.html</span>
+        </p>
+      </div>
+    </main>
+
+    <script>
+      const ua = navigator.userAgent || ''
+      const isInAppBrowser = /(MicroMessenger|QQ\/|QQBrowserLite|Lark|Feishu|DingTalk|AliApp|WeCom)/i.test(ua)
+
+      document.getElementById(isInAppBrowser ? 'inAppNotice' : 'browserNotice')?.classList.add('show')
+    </script>
+  </body>
+</html>

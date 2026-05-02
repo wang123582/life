@@ -7,6 +7,9 @@
 /manifest.webmanifest
   Cache-Control: no-cache
 
+/android-download.html
+  Cache-Control: public, max-age=60, must-revalidate
+
 /icon-192.png
   Cache-Control: public, max-age=604800
 

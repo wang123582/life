@@ -9,7 +9,8 @@
 它不是复杂项目管理工具，也不是鸡血打卡器。当前版本更像一个给自己用的、跨手机和电脑的生活治理原型。
 
 - 在线版本：<https://life-50r.pages.dev/>
-- Android 安装包（更快）：<https://life-50r.pages.dev/downloads/life-android.apk>
+- Android 下载页（更稳，先引导用系统浏览器打开）：<https://life-50r.pages.dev/android-download.html>
+- Android 安装包直链：<https://life-50r.pages.dev/downloads/life-android.apk>
 - Android 调试包旧链接：<https://life-50r.pages.dev/downloads/life-debug.apk>
 
 ## 为什么做这个
@@ -106,7 +107,7 @@ npm run android:apk:release
 npm run android:bundle:release
 ```
 
-如果你只是想先安装现成包，优先用上面的 `life-android.apk` 链接；它现在是重新整理后的轻量下载路径。
+如果你只是想先安装现成包，优先打开上面的 `android-download.html` 下载页；它会先提醒你避开微信 / QQ / 飞书这类内置浏览器，再去下载 `life-android.apk`。
 
 ## 同步、提醒、Android 的说明入口
 

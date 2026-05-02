@@ -111,7 +111,13 @@ npm run android:run
 
 ## 打包 APK / AAB 的方式
 
-如果你只是想直接在手机安装，优先用这个链接：
+如果你只是想直接在手机安装，优先先打开这个下载页：
+
+- <https://life-50r.pages.dev/android-download.html>
+
+下载页会先提醒你不要在微信 / QQ / 飞书等内置浏览器里直接下 APK。
+
+推荐 APK 直链仍然是：
 
 - <https://life-50r.pages.dev/downloads/life-android.apk>
 
