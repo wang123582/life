@@ -97,6 +97,7 @@ function App() {
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
+  const [showPoolAdvanced, setShowPoolAdvanced] = useState(false)
   const [dailySlots, setDailySlots] = useState(String(data.dailyTemplate.topTaskSlots))
   const [dailyRoutines, setDailyRoutines] = useState(String(data.dailyTemplate.routineSlots))
   const [dailyAvoids, setDailyAvoids] = useState(String(data.dailyTemplate.avoidSlots))
@@ -323,7 +324,11 @@ function App() {
     if (!isMobileLayout) {
       setShowMobileTodayExtras(false)
       setExpandedTaskId('')
+      setShowPoolAdvanced(true)
+      return
     }
+
+    setShowPoolAdvanced(false)
   }, [isMobileLayout])
 
   useEffect(() => {
@@ -507,6 +512,28 @@ function App() {
     actions.removeTaskDefinition(taskId)
     setFlashTone('warning')
     setFlashMessage(`已从任务池删除「${title}」。`)
+  }
+
+  const handleLaunchTaskDefinition = (taskId: string, title: string) => {
+    const launched = actions.launchTaskDefinition(taskId)
+
+    if (!launched) {
+      return
+    }
+
+    setActiveTab('today')
+    setSelectedItemId(launched.todayItemId)
+
+    if (isMobileLayout) {
+      setExpandedTaskId(launched.todayItemId)
+    }
+
+    setFlashTone('success')
+    setFlashMessage(
+      launched.createdStep
+        ? `已把「${title}」放进今天，并帮你补好第一步后直接开始。`
+        : `已从任务池直接开始「${title}」。`,
+    )
   }
 
   const handleAddAvoid = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1375,19 +1402,41 @@ function App() {
                     任务名称
                     <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="例如：整理简历、洗澡、复盘今天" />
                   </label>
-                  <div className="inline-grid">
-                    <label>
-                      类型
-                      <select value={taskKind} onChange={(event) => setTaskKind(event.target.value as 'normal' | 'routine')}>
-                        <option value="normal">主动任务</option>
-                        <option value="routine">固定生活任务</option>
-                      </select>
-                    </label>
-                    <label>
-                      提醒时间（可选）
-                      <input value={taskTime} onChange={(event) => setTaskTime(event.target.value)} placeholder="如 21:00" />
-                    </label>
-                  </div>
+                  <label className="checkbox-row toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={taskKind === 'routine'}
+                      onChange={(event) => {
+                        const nextKind = event.target.checked ? 'routine' : 'normal'
+                        setTaskKind(nextKind)
+                        if (nextKind === 'normal') {
+                          setTaskTime('')
+                        }
+                      }}
+                    />
+                    <span>这是固定生活提醒</span>
+                  </label>
+                  {taskKind === 'routine' || showPoolAdvanced ? (
+                    <div className="inline-grid">
+                      <label>
+                        类型
+                        <select value={taskKind} onChange={(event) => setTaskKind(event.target.value as 'normal' | 'routine')}>
+                          <option value="normal">主动任务</option>
+                          <option value="routine">固定生活任务</option>
+                        </select>
+                      </label>
+                      <label>
+                        提醒时间（可选）
+                        <input value={taskTime} onChange={(event) => setTaskTime(event.target.value)} placeholder="如 21:00" />
+                      </label>
+                    </div>
+                  ) : null}
+                  {!showPoolAdvanced && taskKind === 'normal' ? (
+                    <button type="button" className="ghost-button compact-action-button" onClick={() => setShowPoolAdvanced(true)}>
+                      展开更多设置
+                    </button>
+                  ) : null}
+                  <p className="muted">手机上一般只填任务名就够了。只有做固定提醒时，再补时间。</p>
                   <button type="submit" className="primary-button">
                     加入任务池
                   </button>
@@ -1405,9 +1454,20 @@ function App() {
                           </p>
                         </div>
                         <div className="task-pool-actions">
-                          <button type="button" className="primary-button" onClick={() => actions.addTaskToToday(task.id)}>
-                            放进今天
-                          </button>
+                          {task.kind === 'normal' ? (
+                            <>
+                              <button type="button" className="primary-button" onClick={() => handleLaunchTaskDefinition(task.id, task.title)}>
+                                直接开始
+                              </button>
+                              <button type="button" className="ghost-button" onClick={() => actions.addTaskToToday(task.id)}>
+                                只放进今天
+                              </button>
+                            </>
+                          ) : (
+                            <button type="button" className="primary-button" onClick={() => actions.addTaskToToday(task.id)}>
+                              放进今天
+                            </button>
+                          )}
                           <button type="button" className="ghost-button danger-button" onClick={() => handleRemoveTaskDefinition(task.id, task.title)}>
                             删除
                           </button>
@@ -1428,31 +1488,36 @@ function App() {
               </Section>
 
               <Section title="长期规则" subtitle="这些规则会不断提醒你回到自己设的目标。">
-                <form className="stack-form" onSubmit={handleAddRule}>
-                  <div className="inline-grid">
-                    <label>
-                      类型
-                      <select value={ruleType} onChange={(event) => setRuleType(event.target.value as 'do' | 'avoid')}>
-                        <option value="do">要做</option>
-                        <option value="avoid">不做</option>
-                      </select>
-                    </label>
-                    <label>
-                      规则内容
-                      <input value={ruleText} onChange={(event) => setRuleText(event.target.value)} placeholder="例如：晚上 11 点后不再刷手机" />
-                    </label>
+                <details className="info-details" open={!isMobileLayout}>
+                  <summary>{isMobileLayout ? '展开长期规则' : '长期规则'}</summary>
+                  <div className="stack-form top-space">
+                    <form className="stack-form" onSubmit={handleAddRule}>
+                      <div className="inline-grid">
+                        <label>
+                          类型
+                          <select value={ruleType} onChange={(event) => setRuleType(event.target.value as 'do' | 'avoid')}>
+                            <option value="do">要做</option>
+                            <option value="avoid">不做</option>
+                          </select>
+                        </label>
+                        <label>
+                          规则内容
+                          <input value={ruleText} onChange={(event) => setRuleText(event.target.value)} placeholder="例如：晚上 11 点后不再刷手机" />
+                        </label>
+                      </div>
+                      <button type="submit" className="primary-button">
+                        加一条长期规则
+                      </button>
+                    </form>
+                    <div className="chip-list">
+                      {data.ruleDefs.map((rule) => (
+                        <span key={rule.id} className={rule.type === 'avoid' ? 'chip' : 'chip active'}>
+                          {rule.type === 'avoid' ? '不做' : '要做'} · {rule.text}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <button type="submit" className="primary-button">
-                    加一条长期规则
-                  </button>
-                </form>
-                <div className="chip-list">
-                  {data.ruleDefs.map((rule) => (
-                    <span key={rule.id} className={rule.type === 'avoid' ? 'chip' : 'chip active'}>
-                      {rule.type === 'avoid' ? '不做' : '要做'} · {rule.text}
-                    </span>
-                  ))}
-                </div>
+                </details>
               </Section>
             </div>
           </div>

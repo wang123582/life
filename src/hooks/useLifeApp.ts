@@ -291,6 +291,88 @@ export function useLifeApp() {
     })
   }
 
+  const launchTaskDefinition = (taskId: string) => {
+    const task = safeData.taskDefs.find((item) => item.id === taskId && !item.archived)
+    if (!task) return null
+
+    const currentPlan = ensureDayPlan(safeData, dayKey).dayPlans[dayKey]
+    const existing = currentPlan.todayItems.find((item) => item.sourceTaskId === taskId && !item.isDone)
+    const existingPendingStep = existing?.steps.find((step) => !step.isDone)
+    const shouldCreateStarterStep = task.kind === 'normal' && (!existing || existing.steps.length === 0)
+    const todayItemId = existing?.id ?? createId('today')
+    const starterStepId = existingPendingStep?.id ?? (shouldCreateStarterStep ? createId('step') : undefined)
+    const starterStepTitle = shouldCreateStarterStep ? `先开始：${task.title}` : undefined
+
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const plan = clonePlan(next.dayPlans[dayKey])
+
+      if (!existing) {
+        plan.todayItems = [
+          ...plan.todayItems,
+          {
+            id: todayItemId,
+            sourceTaskId: task.id,
+            title: task.title,
+            kind: task.kind,
+            isDone: false,
+            order: plan.todayItems.length + 1,
+            steps: starterStepId && starterStepTitle
+              ? [
+                  {
+                    id: starterStepId,
+                    title: starterStepTitle,
+                    isDone: false,
+                    completedAt: undefined,
+                  },
+                ]
+              : [],
+            createdAt: new Date().toISOString(),
+          },
+        ]
+      } else if (starterStepId && starterStepTitle) {
+        plan.todayItems = plan.todayItems.map((item) =>
+          item.id === existing.id
+            ? {
+                ...item,
+                steps: [
+                  ...item.steps,
+                  {
+                    id: starterStepId,
+                    title: starterStepTitle,
+                    isDone: false,
+                    completedAt: undefined,
+                  },
+                ],
+              }
+            : item,
+        )
+      }
+
+      return stampData({
+        ...next,
+        dayPlans: {
+          ...next.dayPlans,
+          [dayKey]: plan,
+        },
+        activeTimer: {
+          mode: 'focus',
+          dayItemId: todayItemId,
+          stepId: starterStepId,
+          startedAt: new Date().toISOString(),
+          durationMinutes: next.settings.focusMinutes,
+        },
+      })
+    })
+
+    return {
+      todayItemId,
+      stepId: starterStepId,
+      createdTodayItem: !existing,
+      createdStep: !existingPendingStep && Boolean(starterStepId),
+    }
+  }
+
   const removeTaskDefinition = (taskId: string) => {
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
@@ -770,6 +852,7 @@ export function useLifeApp() {
       addTaskDefinition,
       quickStartTodayTask,
       addTaskToToday,
+      launchTaskDefinition,
       removeTaskDefinition,
       toggleTodayItemDone,
       removeTodayItem,
