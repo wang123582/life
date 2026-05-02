@@ -57,6 +57,7 @@
 - 已加入项目内本地 Android 仓库代理，专门绕过这台机器当前的 DNS 解析问题
 - `npm run android:apk:debug` 已成功跑通
 - 已成功产出调试安装包：`android/app/build/outputs/apk/debug/app-debug.apk`
+- 已把站点下载用的 APK 重新压回约 `4.7 MB`，不再把历史下载包再次打进 APK 里
 
 换句话说，现在这条链路已经从“有 Android 工程”推进到了“能在当前机器上真正打出 debug APK”。
 
@@ -109,6 +110,12 @@ npm run android:run
 - Android SDK 可用
 
 ## 打包 APK / AAB 的方式
+
+如果你只是想直接在手机安装，优先用这个链接：
+
+- <https://life-50r.pages.dev/downloads/life-android.apk>
+
+旧调试链接仍保留，但新的 `life-android.apk` 更适合直接下载。
 
 推荐用 Android Studio：
 

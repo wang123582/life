@@ -9,7 +9,8 @@
 它不是复杂项目管理工具，也不是鸡血打卡器。当前版本更像一个给自己用的、跨手机和电脑的生活治理原型。
 
 - 在线版本：<https://life-50r.pages.dev/>
-- Android 调试包：<https://life-50r.pages.dev/downloads/life-debug.apk>
+- Android 安装包（更快）：<https://life-50r.pages.dev/downloads/life-android.apk>
+- Android 调试包旧链接：<https://life-50r.pages.dev/downloads/life-debug.apk>
 
 ## 为什么做这个
 
@@ -105,7 +106,7 @@ npm run android:apk:release
 npm run android:bundle:release
 ```
 
-如果你只是想先安装现成包，直接使用上面的 APK 下载地址更省事。
+如果你只是想先安装现成包，优先用上面的 `life-android.apk` 链接；它现在是重新整理后的轻量下载路径。
 
 ## 同步、提醒、Android 的说明入口
 
@@ -152,7 +153,7 @@ npm run android:bundle:release
 当前仓库已经不是纯方案文档，而是一个可继续迭代的原型：
 
 - Web / PWA 可直接使用
-- Android 壳已接好，并能生成调试 APK
+- Android 壳已接好，并能生成约 `4.7 MB` 的调试 APK 下载包
 - Supabase / 飞书 / 手机原生提醒 / 安卓应用锁都已经有基础接入
 - 近期重点在持续 **减少上手复杂度**，让用户能更快进入“今天先开工”的状态
 
