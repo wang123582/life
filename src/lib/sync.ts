@@ -11,10 +11,18 @@ interface RemoteSnapshotRow {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
 
+function isPlaceholderSyncValue(value?: string): boolean {
+  if (!value) {
+    return true
+  }
+
+  return value.includes('your-project.supabase.co') || value.includes('your-anon-key')
+}
+
 let client: SupabaseClient | null = null
 
 export function isSyncEnvReady(): boolean {
-  return Boolean(supabaseUrl && supabaseAnonKey)
+  return Boolean(supabaseUrl && supabaseAnonKey && !isPlaceholderSyncValue(supabaseUrl) && !isPlaceholderSyncValue(supabaseAnonKey))
 }
 
 export function createSyncSpaceId(): string {

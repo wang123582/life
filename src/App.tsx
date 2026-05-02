@@ -236,6 +236,10 @@ function App() {
   }, [data.settings.syncSpaceId, data.settings.syncDeviceName])
 
   useEffect(() => {
+    setBlockedTargets(data.settings.blockedTargets.join('\n'))
+  }, [data.settings.blockedTargets])
+
+  useEffect(() => {
     const firstPendingItem = actionablePendingItems[0]?.id ?? actionableTodayItems[0]?.id ?? ''
     setSelectedItemId((prev) => prev || firstPendingItem)
   }, [actionablePendingItems, actionableTodayItems])
@@ -606,6 +610,13 @@ function App() {
     })
     setFlashTone('success')
     setFlashMessage('设置已经保存。先回到今天页继续做事就行。')
+  }
+
+  const handleBlockedTargetsChange = (value: string) => {
+    setBlockedTargets(value)
+    actions.updateSettings({
+      blockedTargets: splitLines(value),
+    })
   }
 
   const syncTodayToFeishu = async (reviewPayload: typeof dayPlan.review) => {
@@ -1697,6 +1708,15 @@ function App() {
                       {focusLockMessage ? (
                         <p className={focusLockStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{focusLockMessage}</p>
                       ) : null}
+                      {focusLockAvailable ? (
+                        <p className="muted">
+                          {data.settings.blockerLevel === 'light'
+                            ? '当前干预等级是轻提醒，不会真的拦住应用；改成软阻断或硬阻断后，开始专注时才会拉回 life。'
+                            : data.settings.blockedTargets.length === 0
+                              ? '还没填黑名单应用，先至少加一个应用名或包名。'
+                              : '黑名单现在会即时保存；开始专注后，命中的应用会被拉回 life。'}
+                        </p>
+                      ) : null}
                       <ul className="bullet-list compact-bullet-list">
                         <li>测试应用锁定时，先开始一轮专注，再去点开黑名单应用。</li>
                         <li>如果没被拦住，先检查无障碍服务状态，再确认黑名单里填的是应用名或包名。</li>
@@ -1714,7 +1734,7 @@ function App() {
                       </label>
                       <label>
                         需要重点防的应用 / 网站（每行一项）
-                        <textarea rows={5} value={blockedTargets} onChange={(event) => setBlockedTargets(event.target.value)} />
+                        <textarea rows={5} value={blockedTargets} onChange={(event) => handleBlockedTargetsChange(event.target.value)} />
                       </label>
                       <label className="checkbox-row">
                         <input
