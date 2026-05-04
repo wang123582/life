@@ -258,6 +258,10 @@ button {
   background: rgba(255, 196, 98, 0.18);
 }
 
+.mobile-feedback-badge {
+  max-width: 100%;
+}
+
 .topbar-actions {
   display: flex;
   gap: 10px;
@@ -330,6 +334,58 @@ button {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.planner-inline-card {
+  display: grid;
+  gap: 14px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.planner-inline-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.planner-inline-copy strong {
+  font-size: 18px;
+  color: #eef2ff;
+}
+
+.planner-inline-copy p,
+.planner-suggestion-card p {
+  margin: 0;
+  color: #9eabd0;
+}
+
+.planner-suggestion-list {
+  display: grid;
+  gap: 10px;
+}
+
+.planner-suggestion-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.planner-suggestion-card strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.planner-suggestion-actions,
+.planner-empty-state {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .context-reminder p,
@@ -865,6 +921,13 @@ button:disabled {
   color: #8f9ab9;
 }
 
+.step-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .task-footer {
   justify-content: space-between;
   align-items: center;
@@ -892,6 +955,12 @@ button:disabled {
 .task-mobile-preview p {
   margin: 0;
   color: #b4bddb;
+}
+
+.quick-start-mobile-note {
+  margin: 0;
+  color: #dce4ff;
+  font-weight: 600;
 }
 
 .task-mobile-actions,
@@ -1177,8 +1246,60 @@ button:disabled {
 }
 
 @media (max-width: 768px) {
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    padding: 12px 14px;
+    gap: 12px;
+    background: rgba(8, 12, 25, 0.94);
+  }
+
+  .brand {
+    font-size: 22px;
+  }
+
+  .brand-subtitle,
+  .sidebar-card {
+    display: none;
+  }
+
+  .nav-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(96px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .nav-button {
+    min-width: 96px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .nav-button.active {
+    transform: none;
+  }
+
   .main-content {
-    padding: 18px;
+    padding: 14px;
+  }
+
+  .today-page-grid .column-main > .today-overview-section {
+    display: none;
+  }
+
+  .today-page-grid .column-main > .today-quickstart-section {
+    order: 1;
+  }
+
+  .today-page-grid .column-main > .today-tasks-section {
+    order: 2;
+  }
+
+  .today-page-grid .column-main > .today-boundaries-section {
+    order: 3;
   }
 
   .panel {
@@ -1213,7 +1334,8 @@ button:disabled {
   .panel-header,
   .task-card-top,
   .task-footer,
-  .task-card.compact {
+  .task-card.compact,
+  .planner-suggestion-card {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1265,7 +1387,12 @@ button:disabled {
 
   .task-footer > .inline-form,
   .task-footer > .task-footer-actions,
-  .task-mobile-actions > button {
+  .task-mobile-actions > button,
+  .step-actions,
+  .step-actions > button,
+  .planner-suggestion-actions,
+  .planner-suggestion-actions > button,
+  .planner-empty-state > button {
     width: 100%;
   }
 

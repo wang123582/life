@@ -3,7 +3,16 @@ import dayjs from 'dayjs'
 import { difficultyTemplateLabels, encouragementMessages, stateTemplateLabels } from './lib/defaults'
 import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, sendTodayReportToFeishu } from './lib/feishu'
 import { canUseFocusLock, getFocusLockStatus, openFocusLockAccessibilitySettings, saveFocusLockConfig } from './lib/focusLock'
-import { canUseNativeTimer, clearFocusTimerNotification, ensureNativeTimerPermission, scheduleFocusTimerNotification } from './lib/mobileTimer'
+import {
+  canUseNativeTimer,
+  checkExactAlarmAccess,
+  clearRoutineReminderNotifications,
+  clearFocusTimerNotification,
+  ensureNativeTimerPermission,
+  openExactAlarmSettings,
+  scheduleFocusTimerNotification,
+  syncRoutineReminderNotifications,
+} from './lib/mobileTimer'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
 import { createSyncSpaceId, isSyncEnvReady, syncSetupSql } from './lib/sync'
 import { useLifeApp } from './hooks/useLifeApp'
@@ -43,12 +52,14 @@ function getTaskStatusText(item: TodayItem) {
 }
 
 function Section({
+  className,
   kicker,
   title,
   subtitle,
   actions,
   children,
 }: {
+  className?: string
   kicker?: string
   title: string
   subtitle?: string
@@ -56,7 +67,7 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="panel">
+    <section className={className ? `panel ${className}` : 'panel'}>
       <div className="panel-header">
         <div>
           {kicker ? <span className="section-kicker">{kicker}</span> : null}
@@ -160,16 +171,30 @@ function App() {
   const actionableTodayItems = useMemo(() => dayPlan.todayItems.filter((item) => item.kind !== 'routine'), [dayPlan.todayItems])
   const simpleRoutineItems = useMemo(() => dayPlan.todayItems.filter((item) => item.kind === 'routine'), [dayPlan.todayItems])
   const actionablePendingItems = useMemo(() => pendingTodayItems.filter((item) => item.kind !== 'routine'), [pendingTodayItems])
+  const plannedTaskIds = useMemo(
+    () => new Set(dayPlan.todayItems.map((item) => item.sourceTaskId).filter((taskId): taskId is string => Boolean(taskId))),
+    [dayPlan.todayItems],
+  )
+  const plannerSuggestions = useMemo(
+    () => data.taskDefs.filter((task) => !task.archived && task.kind === 'normal' && !plannedTaskIds.has(task.id)).slice(0, isMobileLayout ? 3 : 4),
+    [data.taskDefs, plannedTaskIds, isMobileLayout],
+  )
   const completedTodayCount = useMemo(() => actionableTodayItems.filter((item) => item.isDone).length, [actionableTodayItems])
+  const remainingTopTaskSlots = Math.max(data.dailyTemplate.topTaskSlots - actionableTodayItems.length, 0)
   const primaryTodayItem = actionablePendingItems[0] ?? actionableTodayItems[0]
   const primaryStep = primaryTodayItem?.steps.find((step) => !step.isDone)
   const primaryAvoid = dayPlan.avoidItems.find((item) => !item.isDone)?.text ?? data.ruleDefs.find((rule) => rule.type === 'avoid')?.text
   const primaryRule = data.ruleDefs.find((rule) => rule.type === 'do')?.text
   const nextRoutine = dayPlan.todayItems.find((item) => item.kind === 'routine' && !item.isDone)
   const primaryStepLabel = primaryStep?.title ?? '先拆一个最小动作'
+  const routineReminderCount = useMemo(
+    () => data.taskDefs.filter((task) => task.kind === 'routine' && Boolean(task.scheduleTime?.trim())).length,
+    [data.taskDefs],
+  )
   const activeTimerRange = activeTimer
     ? `${dayjs(activeTimer.startedAt).format('HH:mm')} - ${dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute').format('HH:mm')}`
     : ''
+  const showCompactMobileTodayHeader = isMobileLayout && activeTab === 'today'
 
   const feedbackSummary = useMemo(() => {
     if (activeTimer) {
@@ -356,6 +381,16 @@ function App() {
       body,
     })
   }, [activeItem, activeStep, activeTimer, data.settings.mobileTimerEnabled, nativeTimerAvailable])
+
+  useEffect(() => {
+    if (!data.settings.mobileTimerEnabled || !nativeTimerAvailable) {
+      void clearRoutineReminderNotifications()
+      return
+    }
+
+    const routineTasks = data.taskDefs.filter((task) => task.kind === 'routine' && Boolean(task.scheduleTime?.trim()))
+    void syncRoutineReminderNotifications(routineTasks)
+  }, [data.taskDefs, data.settings.mobileTimerEnabled, nativeTimerAvailable])
 
   useEffect(() => {
     if (!focusLockAvailable) {
@@ -762,9 +797,18 @@ function App() {
     const granted = await ensureNativeTimerPermission()
 
     if (granted) {
+      const scheduledCount = await syncRoutineReminderNotifications(
+        data.taskDefs.filter((task) => task.kind === 'routine' && Boolean(task.scheduleTime?.trim())),
+      )
+      const exactAlarmAccess = await checkExactAlarmAccess()
+
       actions.updateSettings({ mobileTimerEnabled: true })
       setNativeTimerStatus('success')
-      setNativeTimerMessage('已经拿到手机提醒权限。以后切后台或锁屏，番茄钟结束也会提醒你。')
+      setNativeTimerMessage(
+        scheduledCount > 0
+          ? `已经拿到手机提醒权限，并同步了 ${scheduledCount} 条固定生活提醒。${exactAlarmAccess === 'granted' ? '系统精确提醒也已开启。' : '如果想让提醒更准时，再点一次“打开系统闹钟设置”。'}`
+          : '已经拿到手机提醒权限。以后切后台或锁屏，番茄钟结束也会提醒你。',
+      )
       return
     }
 
@@ -789,6 +833,15 @@ function App() {
 
     setNativeTimerStatus('success')
     setNativeTimerMessage('已经安排了一条 15 秒后的测试提醒，锁屏也能测。')
+  }
+
+  const handleOpenExactAlarmSettings = async () => {
+    const granted = await openExactAlarmSettings()
+
+    setNativeTimerStatus(granted ? 'success' : 'error')
+    setNativeTimerMessage(
+      granted ? '系统精确提醒已经开启，固定生活任务会更接近手机闹钟的效果。' : '已打开系统提醒设置。把精确提醒打开后，固定任务会更准时。',
+    )
   }
 
   const handleOpenFocusLockSettings = async () => {
@@ -907,16 +960,37 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="topbar-copy">
-            <span className="section-kicker">今日主线</span>
-            <h1>给自己一个正常的一天</h1>
-            <p>先列今天要做的，再拆出最小下一步。卡住了，就把卡点继续拆掉。</p>
-            <div className="topbar-tags">
-              <span className="topbar-tag">现在最重要：{primaryTodayItem?.title ?? '先挑一个任务'}</span>
-              <span className="topbar-tag">下一步：{primaryStepLabel}</span>
-              {primaryAvoid ? <span className="topbar-tag warning">不做：{primaryAvoid}</span> : null}
-            </div>
+            <span className="section-kicker">{showCompactMobileTodayHeader ? '马上开始' : '今日主线'}</span>
+            <h1>{showCompactMobileTodayHeader ? (activeTimer ? '继续这一轮专注' : '先写任务，马上开工') : '给自己一个正常的一天'}</h1>
+            <p>
+              {showCompactMobileTodayHeader
+                ? activeTimer
+                  ? `这轮先做：${activeStep?.title ?? activeItem?.title ?? '当前动作'}。别继续往下翻了。`
+                  : primaryTodayItem
+                    ? `当前最重要：${primaryTodayItem.title} · 下一步：${primaryStepLabel}`
+                    : '别先研究全部功能，直接写下今天最重要的一件事，然后点开始。'
+                : '先列今天要做的，再拆出最小下一步。卡住了，就把卡点继续拆掉。'}
+            </p>
+            {!showCompactMobileTodayHeader ? (
+              <div className="topbar-tags">
+                <span className="topbar-tag">现在最重要：{primaryTodayItem?.title ?? '先挑一个任务'}</span>
+                <span className="topbar-tag">下一步：{primaryStepLabel}</span>
+                {primaryAvoid ? <span className="topbar-tag warning">不做：{primaryAvoid}</span> : null}
+              </div>
+            ) : null}
           </div>
           <div className="topbar-actions">
+            {showCompactMobileTodayHeader ? (
+              primaryTodayItem ? (
+                <button type="button" className="primary-button" onClick={() => startTask(primaryTodayItem)}>
+                  {activeTimer ? '继续当前专注' : '直接开始当前任务'}
+                </button>
+              ) : (
+                <button type="button" className="primary-button" onClick={() => setActiveTab('pool')}>
+                  去任务池挑一个
+                </button>
+              )
+            ) : null}
             {!isStandalone && installPromptEvent ? (
               <button type="button" className="primary-button" onClick={handleInstallApp}>
                 安装到手机桌面
@@ -925,9 +999,11 @@ function App() {
             <button type="button" className="ghost-button" onClick={askNotificationPermission}>
               开启系统提醒
             </button>
-            <button type="button" className="ghost-button danger" onClick={actions.resetAll}>
-              重置数据
-            </button>
+            {!showCompactMobileTodayHeader ? (
+              <button type="button" className="ghost-button danger" onClick={actions.resetAll}>
+                重置数据
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -968,19 +1044,22 @@ function App() {
           </div>
         ) : null}
 
-        <div className={`feedback-strip ${feedbackSummary.tone}`}>
-          <div>
-            <span className="muted-label">即时反馈</span>
-            <strong>{feedbackSummary.title}</strong>
-            <p>{feedbackSummary.message}</p>
+        {!showCompactMobileTodayHeader ? (
+          <div className={`feedback-strip ${feedbackSummary.tone}`}>
+            <div>
+              <span className="muted-label">即时反馈</span>
+              <strong>{feedbackSummary.title}</strong>
+              <p>{feedbackSummary.message}</p>
+            </div>
+            {flashMessage ? <span className={`feedback-badge ${flashTone}`}>{flashMessage}</span> : null}
           </div>
-          {flashMessage ? <span className={`feedback-badge ${flashTone}`}>{flashMessage}</span> : null}
-        </div>
+        ) : flashMessage ? <span className={`feedback-badge mobile-feedback-badge ${flashTone}`}>{flashMessage}</span> : null}
 
         {activeTab === 'today' ? (
-          <div className="page-grid">
+          <div className="page-grid today-page-grid">
             <div className="column-main">
               <Section
+                className="today-overview-section"
                 kicker="Overview"
                 title="今天必须做的事情"
                 subtitle="今天必须做的、必须守住的、必须记得去生活的，都放在这里。"
@@ -1034,16 +1113,21 @@ function App() {
               </Section>
 
               <Section
+                className="today-quickstart-section"
                 kicker="Quick start"
-                title="别研究全部，先开一件事"
-                subtitle="第一次用时，只做三步：写下最重要的一件事、补一个最小动作、直接开始。"
+                title={showCompactMobileTodayHeader ? '现在就写，写完就开始' : '别研究全部，先开一件事'}
+                subtitle={showCompactMobileTodayHeader ? '手机上只保留开工入口：任务名、下一步、直接开始。' : '第一次用时，只做三步：写下最重要的一件事、补一个最小动作、直接开始。'}
               >
                 <div className="quick-start-card">
-                  <ol className="quick-start-steps">
-                    <li>先写今天最重要的一件事。</li>
-                    <li>再写一个小到能立刻开始的动作。</li>
-                    <li>点“直接开始”，别再切来切去。</li>
-                  </ol>
+                  {!showCompactMobileTodayHeader ? (
+                    <ol className="quick-start-steps">
+                      <li>先写今天最重要的一件事。</li>
+                      <li>再写一个小到能立刻开始的动作。</li>
+                      <li>点“直接开始”，别再切来切去。</li>
+                    </ol>
+                  ) : (
+                    <p className="quick-start-mobile-note">先写一件事和一个最小动作，别先往下翻。</p>
+                  )}
                   <div className="stack-form">
                     <label>
                       今天最重要的一件事
@@ -1070,13 +1154,58 @@ function App() {
                       </button>
                     </div>
                   </div>
+
+                  <div className="planner-inline-card">
+                    <div className="planner-inline-copy">
+                      <span className="muted-label">晨间挑选</span>
+                      <strong>
+                        今天建议保留 {data.dailyTemplate.topTaskSlots} 个核心任务，现在已选 {actionableTodayItems.length} 个
+                        {remainingTopTaskSlots > 0 ? `，还可以再挑 ${remainingTopTaskSlots} 个。` : '，先别继续加了，直接开工。'}
+                      </strong>
+                      <p>
+                        {plannerSuggestions.length > 0
+                          ? '下面这些还没进今天，点一下就能加入今天或直接开始。'
+                          : actionableTodayItems.length > 0
+                            ? '任务池里的主动任务已经挑得差不多了，先把今天的任务做掉。'
+                            : '如果任务池还是空的，就先在上面写一件今天最重要的事。'}
+                      </p>
+                    </div>
+
+                    {plannerSuggestions.length > 0 ? (
+                      <div className="planner-suggestion-list">
+                        {plannerSuggestions.map((task) => (
+                          <article key={task.id} className="planner-suggestion-card">
+                            <div>
+                              <strong>{task.title}</strong>
+                              <p>{isMobileLayout ? '点一下就能拉进今天。' : '不切页面，直接决定它今天要不要做。'}</p>
+                            </div>
+                            <div className="planner-suggestion-actions">
+                              <button type="button" className="ghost-button compact-action-button" onClick={() => actions.addTaskToToday(task.id)}>
+                                加入今天
+                              </button>
+                              <button type="button" className="primary-button compact-action-button" onClick={() => handleLaunchTaskDefinition(task.id, task.title)}>
+                                直接开始
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="planner-empty-state">
+                        <button type="button" className="ghost-button compact-action-button" onClick={() => setActiveTab('pool')}>
+                          去任务池整理更多任务
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Section>
 
               <Section
+                className="today-tasks-section"
                 kicker="Execution"
-                title="今天要做什么"
-                subtitle="从任务池拖进今天后，给每个任务至少拆一个最小动作。"
+                title={showCompactMobileTodayHeader ? '现在就干这几件' : '今天要做什么'}
+                subtitle={showCompactMobileTodayHeader ? '手机上只保留任务、下一步和开始按钮。' : '从任务池拖进今天后，给每个任务至少拆一个最小动作。'}
                 actions={<span className="muted-label">推荐保留 {data.dailyTemplate.topTaskSlots} 个核心任务</span>}
               >
                 <div className="task-list">
@@ -1162,13 +1291,22 @@ function App() {
                                     </small>
                                   </span>
                                 </label>
-                                <button
-                                  type="button"
-                                  className="tiny-button subtle"
-                                  onClick={() => actions.startFocusTimer(item.id, step.id)}
-                                >
-                                  开始这一步
-                                </button>
+                                <div className="step-actions">
+                                  <button
+                                    type="button"
+                                    className="tiny-button subtle"
+                                    onClick={() => actions.startFocusTimer(item.id, step.id)}
+                                  >
+                                    开始这一步
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="tiny-button danger-button"
+                                    onClick={() => actions.removeStep(item.id, step.id)}
+                                  >
+                                    删除
+                                  </button>
+                                </div>
                               </li>
                             ))}
                           </ul>
@@ -1242,6 +1380,7 @@ function App() {
               </Section>
 
               <Section
+                className="today-boundaries-section"
                 kicker="Boundaries"
                 title="今天不做什么"
                 subtitle="给自己划边界，别让今天又被同样的东西吃掉。"
@@ -1411,7 +1550,7 @@ function App() {
                 <form className="stack-form" onSubmit={handleAddTaskDefinition}>
                   <label>
                     任务名称
-                    <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="例如：整理简历、洗澡、复盘今天" />
+                    <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="例如：整理简历 / 吃饭 12:30 / 晚上洗澡 21:30" />
                   </label>
                   <label className="checkbox-row toggle-row">
                     <input
@@ -1447,7 +1586,7 @@ function App() {
                       展开更多设置
                     </button>
                   ) : null}
-                  <p className="muted">手机上一般只填任务名就够了。只有做固定提醒时，再补时间。</p>
+                  <p className="muted">手机上一般只填一行就够了。像成熟任务软件一样，你可以直接写「吃饭 12:30」或「晚上洗澡 21:30」，系统会自动识别成固定提醒。</p>
                   <button type="submit" className="primary-button">
                     加入任务池
                   </button>
@@ -1618,14 +1757,18 @@ function App() {
                       checked={data.settings.mobileTimerEnabled}
                       onChange={(event) => actions.updateSettings({ mobileTimerEnabled: event.target.checked })}
                     />
-                    <span>手机端开启原生计时提醒（锁屏 / 切后台后仍会响）</span>
+                    <span>手机端开启原生提醒（番茄钟 + 固定生活任务都会提醒）</span>
                   </label>
+                  <p className="muted">当前已配置 {routineReminderCount} 条固定生活提醒。它们会按任务池里的时间每天提醒。</p>
                   <div className="feishu-actions compact-actions-grid">
                     <button type="button" className="ghost-button" onClick={handleEnableNativeTimer}>
                       申请提醒权限
                     </button>
                     <button type="button" className="ghost-button" onClick={handleTestNativeTimer}>
                       测试手机提醒
+                    </button>
+                    <button type="button" className="ghost-button" onClick={handleOpenExactAlarmSettings}>
+                      打开系统闹钟设置
                     </button>
                   </div>
                   {nativeTimerMessage ? (

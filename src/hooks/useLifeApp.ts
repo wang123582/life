@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import { createEmptyDayPlan, createId, currentDayKey, defaultData, ensureDayPlan } from '../lib/defaults'
+import { parseQuickTaskInput } from '../lib/quickCapture'
 import { loadData, saveData } from '../lib/storage'
 import { isSyncEnvReady, pullRemoteSnapshot, pushRemoteSnapshot } from '../lib/sync'
 import type {
@@ -187,14 +188,14 @@ export function useLifeApp() {
   }
 
   const addTaskDefinition = (title: string, kind: TaskKind, scheduleTime?: string) => {
-    const cleanTitle = title.trim()
-    if (!cleanTitle) return
+    const parsedInput = parseQuickTaskInput(title, kind, scheduleTime)
+    if (!parsedInput.title) return
 
     const task: TaskDefinition = {
       id: createId('task'),
-      title: cleanTitle,
-      kind,
-      scheduleTime: scheduleTime?.trim() ? scheduleTime : undefined,
+      title: parsedInput.title,
+      kind: parsedInput.kind,
+      scheduleTime: parsedInput.scheduleTime,
       createdAt: new Date().toISOString(),
     }
 
@@ -503,6 +504,23 @@ export function useLifeApp() {
             }
           : item,
       ),
+    }))
+  }
+
+  const removeStep = (todayItemId: string, stepId: string) => {
+    updateDayPlan((plan) => ({
+      ...plan,
+      todayItems: plan.todayItems.map((item) => {
+        if (item.id !== todayItemId) return item
+
+        const steps = item.steps.filter((step) => step.id !== stepId)
+
+        return {
+          ...item,
+          steps,
+          isDone: steps.length > 0 ? steps.every((step) => step.isDone) : false,
+        }
+      }),
     }))
   }
 
@@ -858,6 +876,7 @@ export function useLifeApp() {
       removeTodayItem,
       moveTodayItem,
       addStep,
+      removeStep,
       toggleStepDone,
       addAvoidItem,
       toggleAvoidDone,
