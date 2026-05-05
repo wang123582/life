@@ -182,6 +182,7 @@ function App() {
   const completedTodayCount = useMemo(() => actionableTodayItems.filter((item) => item.isDone).length, [actionableTodayItems])
   const remainingTopTaskSlots = Math.max(data.dailyTemplate.topTaskSlots - actionableTodayItems.length, 0)
   const primaryTodayItem = actionablePendingItems[0] ?? actionableTodayItems[0]
+  const firstPlannerSuggestion = plannerSuggestions[0]
   const primaryStep = primaryTodayItem?.steps.find((step) => !step.isDone)
   const primaryAvoid = dayPlan.avoidItems.find((item) => !item.isDone)?.text ?? data.ruleDefs.find((rule) => rule.type === 'avoid')?.text
   const primaryRule = data.ruleDefs.find((rule) => rule.type === 'do')?.text
@@ -207,9 +208,11 @@ function App() {
 
     if (!primaryTodayItem) {
       return {
-        tone: 'warning' as const,
-        title: '先定一件事',
-        message: '先写一件今天最重要的事，再点开始，别让页面把你拖住。',
+        tone: firstPlannerSuggestion ? ('info' as const) : ('warning' as const),
+        title: firstPlannerSuggestion ? '候选任务已经在这' : '先定一件事',
+        message: firstPlannerSuggestion
+          ? `不用先切页面了，直接把「${firstPlannerSuggestion.title}」拉进今天，或者立刻开始。`
+          : '先写一件今天最重要的事，再点开始，别让页面把你拖住。',
       }
     }
 
@@ -234,7 +237,7 @@ function App() {
       title: '现在就够了',
       message: `先做「${primaryStep.title}」，不用把所有功能都看懂。`,
     }
-  }, [activeItem, activeStep, activeTimer, completedTodayCount, primaryStep, primaryTodayItem])
+  }, [activeItem, activeStep, activeTimer, completedTodayCount, firstPlannerSuggestion, primaryStep, primaryTodayItem])
 
   useEffect(() => {
     setCommunicationNote(dayPlan.communicationNote)
@@ -984,6 +987,14 @@ function App() {
               primaryTodayItem ? (
                 <button type="button" className="primary-button" onClick={() => startTask(primaryTodayItem)}>
                   {activeTimer ? '继续当前专注' : '直接开始当前任务'}
+                </button>
+              ) : firstPlannerSuggestion ? (
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => handleLaunchTaskDefinition(firstPlannerSuggestion.id, firstPlannerSuggestion.title)}
+                >
+                  直接开始第一候选任务
                 </button>
               ) : (
                 <button type="button" className="primary-button" onClick={() => setActiveTab('pool')}>
