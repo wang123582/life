@@ -1266,16 +1266,17 @@ button:disabled {
 
   .nav-list {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(96px, 1fr);
-    overflow-x: auto;
-    padding-bottom: 2px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    overflow-x: visible;
+    padding-bottom: 0;
   }
 
   .nav-button {
-    min-width: 96px;
-    padding: 12px 14px;
+    min-width: 0;
+    padding: 9px 6px;
     text-align: center;
+    font-size: 13px;
   }
 
   .nav-button.active {
@@ -1421,5 +1422,20 @@ button:disabled {
     right: 16px;
     bottom: 16px;
     width: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .sidebar {
+    padding: 10px 10px 12px;
+  }
+
+  .nav-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav-button {
+    padding: 10px 6px;
+    font-size: 13px;
   }
 }
