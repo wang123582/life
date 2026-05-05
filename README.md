@@ -10,8 +10,8 @@
 
 - 在线版本：<https://life-50r.pages.dev/>
 - Android 下载页（更稳，先引导用系统浏览器打开）：<https://life-50r.pages.dev/android-download.html>
-- Android 安装包直链：<https://life-50r.pages.dev/downloads/life-android.apk?v=a14c88f>
-- Android 调试包旧链接：<https://life-50r.pages.dev/downloads/life-debug.apk?v=a14c88f>
+- Android 安装包直链：<https://life-50r.pages.dev/downloads/life-android.apk?v=c9e677d>
+- Android 调试包旧链接：<https://life-50r.pages.dev/downloads/life-debug.apk?v=c9e677d>
 
 ## 为什么做这个
 
