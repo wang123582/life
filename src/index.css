@@ -1266,7 +1266,7 @@ button:disabled {
 
   .nav-list {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     overflow-x: visible;
     padding-bottom: 0;
@@ -1428,10 +1428,6 @@ button:disabled {
 @media (max-width: 380px) {
   .sidebar {
     padding: 10px 10px 12px;
-  }
-
-  .nav-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .nav-button {
