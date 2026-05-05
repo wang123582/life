@@ -96,6 +96,13 @@ npm run dev
 npm run build
 ```
 
+构建完成后会额外生成 `dist/build-meta.json`，里面会写入当前提交 SHA 与构建时间。
+如果怀疑线上还没更新，可以直接打开：
+
+- <https://life-50r.pages.dev/build-meta.json>
+
+它比盯着缓存更诚实，算是一个给部署链路准备的小体检单。
+
 ## Android 相关命令
 
 ```bash

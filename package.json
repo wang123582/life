@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node ./scripts/write-build-meta.mjs",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android && rm -rf android/app/src/main/assets/public/downloads",
     "android:open": "./scripts/run-with-local-jdk17.sh npx cap open android",

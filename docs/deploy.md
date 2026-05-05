@@ -96,6 +96,18 @@ iOS 一般不走标准 `beforeinstallprompt` 流程，通常需要：
 
 `npm run build`
 
+每次构建后还会额外生成 `dist/build-meta.json`，内容包含：
+
+- 当前 Git 提交 SHA
+- 构建时间
+- 当前分支
+
+如果怀疑 Cloudflare Pages 没跟上最新代码，优先直接检查：
+
+- `https://你的域名/build-meta.json`
+
+这样能很快分清：到底是浏览器缓存、PWA 缓存，还是部署本身压根没更新。
+
 ## 当前限制
 
 - 现在还没有后端

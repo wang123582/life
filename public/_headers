@@ -10,6 +10,9 @@
 /android-download.html
   Cache-Control: public, max-age=60, must-revalidate
 
+/build-meta.json
+  Cache-Control: no-store, no-cache, must-revalidate
+
 /icon-192.png
   Cache-Control: public, max-age=604800
 
