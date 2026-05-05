@@ -268,6 +268,34 @@ button {
   flex-wrap: wrap;
 }
 
+.topbar-actions-details {
+  min-width: 164px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 10px 12px;
+}
+
+.topbar-actions-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #dfe6ff;
+  list-style: none;
+}
+
+.topbar-actions-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.topbar-actions-details[open] summary {
+  margin-bottom: 10px;
+}
+
+.topbar-actions-menu {
+  display: grid;
+  gap: 10px;
+}
+
 .context-reminder,
 .goal-banner {
   display: flex;
@@ -1033,6 +1061,15 @@ button:disabled {
 .sync-summary-card p {
   margin: 8px 0 0;
   color: #c7d0ee;
+}
+
+.settings-basics-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .compact-bullet-list {

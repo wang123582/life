@@ -1007,13 +1007,18 @@ function App() {
                 安装到手机桌面
               </button>
             ) : null}
-            <button type="button" className="ghost-button" onClick={askNotificationPermission}>
-              开启系统提醒
-            </button>
             {!showCompactMobileTodayHeader ? (
-              <button type="button" className="ghost-button danger" onClick={actions.resetAll}>
-                重置数据
-              </button>
+              <details className="topbar-actions-details">
+                <summary>更多今天操作</summary>
+                <div className="topbar-actions-menu">
+                  <button type="button" className="ghost-button" onClick={askNotificationPermission}>
+                    开启系统提醒
+                  </button>
+                  <button type="button" className="ghost-button danger" onClick={actions.resetAll}>
+                    重置数据
+                  </button>
+                </div>
+              </details>
             ) : null}
           </div>
         </header>
@@ -1095,9 +1100,6 @@ function App() {
                         去任务池挑任务
                       </button>
                     )}
-                    <button type="button" className="ghost-button" onClick={() => setActiveTab('review')}>
-                      晚上记得复盘
-                    </button>
                   </div>
                 </div>
 
@@ -1424,7 +1426,7 @@ function App() {
             {isMobileLayout ? (
               <div className="mobile-side-toggle">
                 <button type="button" className="ghost-button mobile-side-toggle-button" onClick={() => setShowMobileTodayExtras((prev) => !prev)}>
-                  {showMobileTodayExtras ? '收起状态、交流和卡点' : '查看状态、交流和卡点'}
+                  {showMobileTodayExtras ? '收起卡住时再用' : '卡住了再展开'}
                 </button>
               </div>
             ) : null}
@@ -1741,7 +1743,7 @@ function App() {
             </div>
 
             <div className="column-side">
-              <Section title="设备与提醒" subtitle="先让这台设备能顺手用。跨端同步、应用锁、飞书都放到下面按需展开。">
+              <Section title="设备与提醒" subtitle="默认只保留提醒和同步概况。跨端同步、防分心、飞书都先折叠起来。">
                 <div className="stack-form">
                   <div className="sync-summary-card">
                     <div>
@@ -1758,37 +1760,48 @@ function App() {
                           : '想让手机和电脑互通时，再打开同步。'}
                     </p>
                   </div>
-                  <label>
-                    这台设备叫什么
-                    <input value={syncDeviceName} onChange={(event) => setSyncDeviceName(event.target.value)} placeholder="例如：我的手机 / 家里电脑" />
-                  </label>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={data.settings.mobileTimerEnabled}
-                      onChange={(event) => actions.updateSettings({ mobileTimerEnabled: event.target.checked })}
-                    />
-                    <span>手机端开启原生提醒（番茄钟 + 固定生活任务都会提醒）</span>
-                  </label>
-                  <p className="muted">当前已配置 {routineReminderCount} 条固定生活提醒。它们会按任务池里的时间每天提醒。</p>
-                  <div className="feishu-actions compact-actions-grid">
-                    <button type="button" className="ghost-button" onClick={handleEnableNativeTimer}>
-                      申请提醒权限
-                    </button>
-                    <button type="button" className="ghost-button" onClick={handleTestNativeTimer}>
-                      测试手机提醒
-                    </button>
-                    <button type="button" className="ghost-button" onClick={handleOpenExactAlarmSettings}>
-                      打开系统闹钟设置
-                    </button>
+                  <div className="settings-basics-card">
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={data.settings.mobileTimerEnabled}
+                        onChange={(event) => actions.updateSettings({ mobileTimerEnabled: event.target.checked })}
+                      />
+                      <span>手机端开启原生提醒</span>
+                    </label>
+                    <div className="feishu-actions compact-actions-grid">
+                      <button type="button" className="ghost-button" onClick={handleEnableNativeTimer}>
+                        先申请提醒权限
+                      </button>
+                    </div>
+                    <p className="muted">先把这台设备的提醒权限开通就够了。更细的提醒排查放到下面再展开。</p>
+                    {nativeTimerMessage ? (
+                      <p className={nativeTimerStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{nativeTimerMessage}</p>
+                    ) : null}
                   </div>
-                  {nativeTimerMessage ? (
-                    <p className={nativeTimerStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{nativeTimerMessage}</p>
-                  ) : null}
 
                   <details className="info-details">
-                    <summary>展开手机和电脑同步</summary>
+                    <summary>展开提醒细节和排查</summary>
                     <div className="stack-form top-space">
+                      <p className="muted">当前已配置 {routineReminderCount} 条固定生活提醒，它们会按任务池里的时间每天提醒。</p>
+                      <div className="feishu-actions compact-actions-grid">
+                        <button type="button" className="ghost-button" onClick={handleTestNativeTimer}>
+                          测试手机提醒
+                        </button>
+                        <button type="button" className="ghost-button" onClick={handleOpenExactAlarmSettings}>
+                          打开系统闹钟设置
+                        </button>
+                      </div>
+                    </div>
+                  </details>
+
+                  <details className="info-details">
+                    <summary>跨设备时再展开同步</summary>
+                    <div className="stack-form top-space">
+                      <label>
+                        这台设备叫什么
+                        <input value={syncDeviceName} onChange={(event) => setSyncDeviceName(event.target.value)} placeholder="例如：我的手机 / 家里电脑" />
+                      </label>
                       <label>
                         同步空间码
                         <input value={syncSpaceId} onChange={(event) => setSyncSpaceId(event.target.value.toUpperCase())} placeholder="例如：ABCD-EFGH" />
@@ -1840,7 +1853,7 @@ function App() {
                   </details>
 
                   <details className="info-details">
-                    <summary>展开专注防分心（安卓）</summary>
+                    <summary>需要时再展开防分心（安卓）</summary>
                     <div className="stack-form top-space">
                       <label className="checkbox-row">
                         <input
@@ -1909,7 +1922,7 @@ function App() {
                   </details>
 
                   <details className="info-details">
-                    <summary>展开飞书同步（可选）</summary>
+                    <summary>需要时再展开飞书同步（可选）</summary>
                     <div className="stack-form top-space">
                       <label>
                         飞书 webhook 地址
@@ -1959,7 +1972,7 @@ function App() {
                   </details>
 
                   <details className="info-details">
-                    <summary>展开更多操作</summary>
+                    <summary>最后再展开更多操作</summary>
                     <div className="top-space">
                       <button type="button" className="ghost-button danger" onClick={actions.resetAll}>
                         重置全部数据
