@@ -12,6 +12,7 @@ export interface TaskDefinition {
   title: string
   kind: TaskKind
   scheduleTime?: string
+  deadlineDate?: string
   archived?: boolean
   createdAt: string
 }

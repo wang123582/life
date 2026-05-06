@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { TimePicker } from './components/TimePicker'
 import { playAlarmSound, playReminderSound } from './lib/alarm'
 import { difficultyTemplateLabels, encouragementMessages, presetInterventions, stateTemplateLabels } from './lib/defaults'
 import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, buildReportPreviewText, sendFeishuPlainText } from './lib/feishu'
@@ -28,10 +27,17 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'review', label: '复盘' },
 ]
 
+const hourOptions = Array.from({ length: 24 }, (_, value) => String(value).padStart(2, '0'))
+const minuteOptions = Array.from({ length: 60 }, (_, value) => String(value).padStart(2, '0'))
+
 function formatSeconds(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function formatDeadlineDate(deadlineDate?: string): string {
+  return deadlineDate ? dayjs(deadlineDate).format('M 月 D 日') : ''
 }
 
 function splitLines(value: string): string[] {
@@ -89,7 +95,9 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('today')
   const [taskTitle, setTaskTitle] = useState('')
   const [taskKind, setTaskKind] = useState<'normal' | 'routine'>('normal')
-  const [taskTime, setTaskTime] = useState('')
+  const [taskHour, setTaskHour] = useState('')
+  const [taskMinute, setTaskMinute] = useState('')
+  const [taskDeadline, setTaskDeadline] = useState('')
   const [ruleText, setRuleText] = useState('')
   const [ruleType, setRuleType] = useState<'do' | 'avoid'>('do')
   const [avoidText, setAvoidText] = useState('')
@@ -163,6 +171,7 @@ function App() {
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() => window.matchMedia('(max-width: 768px)').matches)
 
   const activeTimer = data.activeTimer
+  const isBreakTimer = activeTimer?.mode === 'shortBreak'
   const focusLockAvailable = canUseFocusLock()
   const nativeTimerAvailable = canUseNativeTimer()
   const remainingSeconds = useTimerRemaining(activeTimer)
@@ -204,6 +213,14 @@ function App() {
   const showCompactMobileTodayHeader = isMobileLayout && activeTab === 'today'
 
   const feedbackSummary = useMemo(() => {
+    if (activeTimer?.mode === 'shortBreak') {
+      return {
+        tone: 'success' as const,
+        title: '现在是休息时间',
+        message: `刚推进完一轮，先休息 ${data.settings.breakMinutes} 分钟，再回来接着做 ${activeItem?.title ?? primaryTodayItem?.title ?? '下一步'}。`,
+      }
+    }
+
     if (activeTimer) {
       return {
         tone: 'success' as const,
@@ -243,7 +260,7 @@ function App() {
       title: '现在就够了',
       message: `先做「${primaryStep.title}」，不用把所有功能都看懂。`,
     }
-  }, [activeItem, activeStep, activeTimer, completedTodayCount, firstPlannerSuggestion, primaryStep, primaryTodayItem])
+  }, [activeItem, activeStep, activeTimer, completedTodayCount, data.settings.breakMinutes, firstPlannerSuggestion, primaryStep, primaryTodayItem])
 
   useEffect(() => {
     setCommunicationNote(dayPlan.communicationNote)
@@ -306,7 +323,23 @@ function App() {
   }, [flashMessage])
 
   useEffect(() => {
-    if (!activeTimer || remainingSeconds > 0 || finishOpen) return
+    if (!activeTimer || remainingSeconds > 0) return
+
+    if (activeTimer.mode === 'shortBreak') {
+      actions.finishBreakTimer()
+      setFlashTone('success')
+      setFlashMessage('休息时间结束了，回来继续下一轮。')
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        void new Notification('休息结束', {
+          body: '休息差不多了，回来继续推进今天最重要的事。',
+        })
+      }
+
+      return
+    }
+
+    if (finishOpen) return
 
     setFinishOpen(true)
 
@@ -314,7 +347,7 @@ function App() {
 
     if ('Notification' in window && Notification.permission === 'granted') {
       void new Notification('番茄钟结束', {
-        body: '先别散掉，记录一下结果和卡点，再决定下一步。',
+        body: '先记一下结果，然后去休息一会儿。',
       })
     }
   }, [activeTimer, remainingSeconds, finishOpen])
@@ -390,8 +423,12 @@ function App() {
     }
 
     const endsAt = dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute').toDate()
-    const title = activeItem?.title ?? 'life 专注提醒'
-    const body = activeStep ? `这一轮结束了：${activeStep.title}` : '这一轮结束了，回来记录结果和下一步。'
+    const title = activeTimer.mode === 'shortBreak' ? 'life 休息提醒' : activeItem?.title ?? 'life 专注提醒'
+    const body = activeTimer.mode === 'shortBreak'
+      ? '休息时间结束后，回来继续下一轮。'
+      : activeStep
+        ? `这一轮结束了：${activeStep.title}`
+        : '这一轮结束了，回来记录结果和下一步。'
 
     void scheduleFocusTimerNotification({
       endsAt,
@@ -435,7 +472,9 @@ function App() {
 
   useEffect(() => {
     const title = activeTimer
-      ? `专注中 ${formatSeconds(remainingSeconds)} · ${activeItem?.title ?? 'life'}`
+      ? activeTimer.mode === 'shortBreak'
+        ? `休息中 ${formatSeconds(remainingSeconds)} · ${activeItem?.title ?? primaryTodayItem?.title ?? 'life'}`
+        : `专注中 ${formatSeconds(remainingSeconds)} · ${activeItem?.title ?? 'life'}`
       : `${primaryTodayItem?.title ?? 'life'} · ${primaryStep?.title ?? '先开始今天的一小步'}`
 
     document.title = title
@@ -556,9 +595,13 @@ function App() {
 
   const handleAddTaskDefinition = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    actions.addTaskDefinition(taskTitle, taskKind, taskKind === 'routine' ? taskTime : undefined)
+    const scheduleTime = taskKind === 'routine' && taskHour && taskMinute ? `${taskHour}:${taskMinute}` : undefined
+
+    actions.addTaskDefinition(taskTitle, taskKind, scheduleTime, taskKind === 'normal' ? taskDeadline : undefined)
     setTaskTitle('')
-    setTaskTime('')
+    setTaskHour('')
+    setTaskMinute('')
+    setTaskDeadline('')
   }
 
   const handleRemoveTaskDefinition = (taskId: string, title: string) => {
@@ -969,16 +1012,30 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="topbar-copy">
-            <span className="section-kicker">{showCompactMobileTodayHeader ? '马上开始' : '今日主线'}</span>
-            <h1>{showCompactMobileTodayHeader ? (activeTimer ? '继续这一轮专注' : '先写任务，马上开工') : '给自己一个正常的一天'}</h1>
+            <span className="section-kicker">{showCompactMobileTodayHeader ? (isBreakTimer ? '休息一下' : '马上开始') : '今日主线'}</span>
+            <h1>
+              {showCompactMobileTodayHeader
+                ? isBreakTimer
+                  ? '这一轮做完了，先休息一下'
+                  : activeTimer
+                    ? '继续这一轮专注'
+                    : '先写任务，马上开工'
+                : isBreakTimer
+                  ? '推进完一轮后，先把休息也认真过掉'
+                  : '给自己一个正常的一天'}
+            </h1>
             <p>
               {showCompactMobileTodayHeader
-                ? activeTimer
+                ? isBreakTimer
+                  ? `休息 ${formatSeconds(remainingSeconds)}，等会儿回来继续 ${activeItem?.title ?? primaryTodayItem?.title ?? '当前任务'}。`
+                  : activeTimer
                   ? `这轮先做：${activeStep?.title ?? activeItem?.title ?? '当前动作'}。别继续往下翻了。`
                   : primaryTodayItem
                     ? `当前最重要：${primaryTodayItem.title} · 下一步：${primaryStepLabel}`
                     : '别先研究全部功能，直接写下今天最重要的一件事，然后点开始。'
-                : '先列今天要做的，再拆出最小下一步。卡住了，就把卡点继续拆掉。'}
+                : isBreakTimer
+                  ? `刚完成一轮专注。现在给自己 ${data.settings.breakMinutes} 分钟休息，结束后继续回到「${activeItem?.title ?? primaryTodayItem?.title ?? '今天的主任务'}」。`
+                  : '先列今天要做的，再拆出最小下一步。卡住了，就把卡点继续拆掉。'}
             </p>
             {!showCompactMobileTodayHeader ? (
               <div className="topbar-tags">
@@ -990,7 +1047,11 @@ function App() {
           </div>
           <div className="topbar-actions">
             {showCompactMobileTodayHeader ? (
-              primaryTodayItem ? (
+              isBreakTimer ? (
+                <button type="button" className="primary-button" onClick={actions.finishBreakTimer}>
+                  提前结束休息
+                </button>
+              ) : primaryTodayItem ? (
                 <button type="button" className="primary-button" onClick={() => startTask(primaryTodayItem)}>
                   {activeTimer ? '继续当前专注' : '直接开始当前任务'}
                 </button>
@@ -1032,12 +1093,17 @@ function App() {
         {activeTimer ? (
           <div className="focus-strip">
             <div>
-              <span className="muted-label">专注已经开始</span>
+              <span className="muted-label">{isBreakTimer ? '休息时间' : '专注已经开始'}</span>
               <strong>
-                正在做：{activeItem?.title ?? '当前任务'}
-                {activeStep ? ` · ${activeStep.title}` : ''}
+                {isBreakTimer
+                  ? `刚完成：${activeItem?.title ?? '这一轮专注'}`
+                  : `正在做：${activeItem?.title ?? '当前任务'}${activeStep ? ` · ${activeStep.title}` : ''}`}
               </strong>
-              <p>现在是专注中，不用急着结束；先把这一小轮做完。{activeTimerRange ? `这轮时间：${activeTimerRange}` : ''}</p>
+              <p>
+                {isBreakTimer
+                  ? `现在先休息一下。休息结束后，再回来继续下一轮。${activeTimerRange ? `休息时间：${activeTimerRange}` : ''}`
+                  : `现在是专注中，不用急着结束；先把这一小轮做完。${activeTimerRange ? `这轮时间：${activeTimerRange}` : ''}`}
+              </p>
             </div>
             <div className="focus-strip-time">{formatSeconds(remainingSeconds)}</div>
           </div>
@@ -1196,7 +1262,13 @@ function App() {
                           <article key={task.id} className="planner-suggestion-card">
                             <div>
                               <strong>{task.title}</strong>
-                              <p>{isMobileLayout ? '点一下就能拉进今天。' : '不切页面，直接决定它今天要不要做。'}</p>
+                              <p>
+                                {task.deadlineDate
+                                  ? `截止 ${formatDeadlineDate(task.deadlineDate)} · 这类任务会每天自动进今天。`
+                                  : isMobileLayout
+                                    ? '点一下就能拉进今天。'
+                                    : '不切页面，直接决定它今天要不要做。'}
+                              </p>
                             </div>
                             <div className="planner-suggestion-actions">
                               <button type="button" className="ghost-button compact-action-button" onClick={() => actions.addTaskToToday(task.id)}>
@@ -1229,6 +1301,7 @@ function App() {
               >
                 <div className="task-list">
                   {actionableTodayItems.map((item) => {
+                    const sourceTask = data.taskDefs.find((task) => task.id === item.sourceTaskId)
                     const firstPendingStep = item.steps.find((step) => !step.isDone)
                     const stepProgress = getStepProgress(item)
                     const progressPercent = stepProgress.total === 0 ? 0 : Math.round((stepProgress.done / stepProgress.total) * 100)
@@ -1267,6 +1340,7 @@ function App() {
                         <div className="task-meta-row">
                           <span className="task-meta-chip">{getTaskStatusText(item)}</span>
                           <span className="task-meta-chip">{stepProgress.done}/{stepProgress.total || 1} 步完成</span>
+                          {sourceTask?.deadlineDate ? <span className="task-meta-chip warning">截止：{formatDeadlineDate(sourceTask.deadlineDate)}</span> : null}
                           {firstPendingStep ? <span className="task-meta-chip accent">当前下一步：{firstPendingStep.title}</span> : null}
                         </div>
 
@@ -1628,7 +1702,10 @@ function App() {
                         const nextKind = event.target.checked ? 'routine' : 'normal'
                         setTaskKind(nextKind)
                         if (nextKind === 'normal') {
-                          setTaskTime('')
+                              setTaskHour('')
+                              setTaskMinute('')
+                            } else {
+                              setTaskDeadline('')
                         }
                       }}
                     />
@@ -1638,13 +1715,49 @@ function App() {
                     <div className="stack-form">
                       <label>
                         类型
-                        <select value={taskKind} onChange={(event) => setTaskKind(event.target.value as 'normal' | 'routine')}>
+                        <select
+                          value={taskKind}
+                          onChange={(event) => {
+                            const nextKind = event.target.value as 'normal' | 'routine'
+                            setTaskKind(nextKind)
+                            if (nextKind === 'routine') {
+                              setTaskDeadline('')
+                            } else {
+                              setTaskHour('')
+                              setTaskMinute('')
+                            }
+                          }}
+                        >
                           <option value="normal">主动任务</option>
                           <option value="routine">固定生活任务</option>
                         </select>
                       </label>
-                      <label>提醒时间</label>
-                      <TimePicker value={taskTime || '12:00'} onChange={(v) => setTaskTime(v)} />
+                      <label>
+                        {taskKind === 'routine' ? '提醒时间（可选）' : '截止日期（可选）'}
+                        {taskKind === 'routine' ? (
+                          <div className="time-picker-row">
+                            <select value={taskHour} onChange={(event) => setTaskHour(event.target.value)}>
+                              <option value="">时</option>
+                              {hourOptions.map((value) => (
+                                <option key={value} value={value}>
+                                  {value}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="time-picker-separator">:</span>
+                            <select value={taskMinute} onChange={(event) => setTaskMinute(event.target.value)}>
+                              <option value="">分</option>
+                              {minuteOptions.map((value) => (
+                                <option key={value} value={value}>
+                                  {value}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <input type="date" value={taskDeadline} onChange={(event) => setTaskDeadline(event.target.value)} />
+                        )}
+                      </label>
                     </div>
                   ) : null}
                   {!showPoolAdvanced && taskKind === 'normal' ? (
@@ -1652,7 +1765,10 @@ function App() {
                       展开更多设置
                     </button>
                   ) : null}
-
+                  <p className="muted">
+                    手机上一般只填一行就够了。像成熟任务软件一样，你可以直接写「吃饭 12:30」或「晚上洗澡 21:30」，系统会自动识别成固定提醒。
+                    主动任务如果填了截止日期，它会每天自动进今天，直到做完为止。
+                  </p>
                   <button type="submit" className="primary-button">
                     加入任务池
                   </button>
@@ -1666,7 +1782,11 @@ function App() {
                         <div>
                           <strong>{task.title}</strong>
                           <p className="muted">
-                            {task.kind === 'routine' ? `固定生活任务 · ${task.scheduleTime ?? '时间待定'}` : '主动任务'}
+                            {task.kind === 'routine'
+                              ? `固定生活任务 · ${task.scheduleTime ?? '时间待定'}`
+                              : task.deadlineDate
+                                ? `主动任务 · 截止 ${formatDeadlineDate(task.deadlineDate)} · 会每天自动进今天`
+                                : '主动任务'}
                           </p>
                         </div>
                         <div className="task-pool-actions">
@@ -2171,29 +2291,35 @@ function App() {
       {activeTimer ? (
         <div className="floating-timer">
           <div>
-            <span className="muted-label">正在专注</span>
+            <span className="muted-label">{isBreakTimer ? '正在休息' : '正在专注'}</span>
             <strong>{formatSeconds(remainingSeconds)}</strong>
-            <p>{activeItem?.title ?? '未绑定任务'}</p>
-            <p className="muted">{activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
+            <p>{isBreakTimer ? `刚完成：${activeItem?.title ?? '这一轮专注'}` : activeItem?.title ?? '未绑定任务'}</p>
+            <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
           </div>
           <div className="floating-actions">
-            <button type="button" className="ghost-button" onClick={() => setFinishOpen(true)}>
-              提前结束并记录
-            </button>
+            {isBreakTimer ? (
+              <button type="button" className="ghost-button" onClick={actions.finishBreakTimer}>
+                提前结束休息
+              </button>
+            ) : (
+              <button type="button" className="ghost-button" onClick={() => setFinishOpen(true)}>
+                提前结束并记录
+              </button>
+            )}
             <button type="button" className="ghost-button danger" onClick={actions.cancelTimer}>
-              取消本轮
+              {isBreakTimer ? '取消休息' : '取消本轮'}
             </button>
           </div>
         </div>
       ) : null}
 
-      {finishOpen && activeTimer ? (
+      {finishOpen && activeTimer?.mode === 'focus' ? (
         <div className="modal-backdrop">
           <div className="modal">
             <div className="panel-header">
               <div>
                 <h2>这一轮结束了</h2>
-                <p>先别飘走，把结果和卡点记下来，再决定下一步。</p>
+                <p>先记一下结果和卡点；保存后就会自动进入休息时间。</p>
               </div>
               <button type="button" className="tiny-button" onClick={() => setFinishOpen(false)}>
                 关闭
@@ -2234,7 +2360,7 @@ function App() {
                 <textarea rows={3} value={nextAction} onChange={(event) => setNextAction(event.target.value)} placeholder="例如：先把需要的资料找齐，再开下一轮" />
               </label>
               <button type="submit" className="primary-button">
-                记下来，并生成下一步
+                记下来，并进入休息时间
               </button>
             </form>
           </div>

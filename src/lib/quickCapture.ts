@@ -11,6 +11,29 @@ function formatScheduleTime(hour: number, minute: number): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+function normalizeExplicitScheduleTime(rawValue?: string): string | undefined {
+  const trimmed = rawValue?.trim()
+
+  if (!trimmed) {
+    return undefined
+  }
+
+  const matched = trimmed.match(/^(\d{1,2})(?::|：)(\d{1,2})$/)
+
+  if (!matched) {
+    return undefined
+  }
+
+  const hour = Number(matched[1])
+  const minute = Number(matched[2])
+
+  if (Number.isNaN(hour) || Number.isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return undefined
+  }
+
+  return formatScheduleTime(hour, minute)
+}
+
 function normalizeHour(period: string | undefined, rawHour: number): number {
   if (rawHour < 0 || rawHour > 23) {
     return rawHour
@@ -70,7 +93,7 @@ function parseInlineTime(rawTitle: string): ParsedInlineTime | null {
 }
 
 export function parseQuickTaskInput(rawTitle: string, fallbackKind: TaskKind, fallbackScheduleTime?: string) {
-  const explicitScheduleTime = fallbackScheduleTime?.trim()
+  const explicitScheduleTime = normalizeExplicitScheduleTime(fallbackScheduleTime)
   const inlineTime = explicitScheduleTime ? null : parseInlineTime(rawTitle)
   const cleanTitle = (inlineTime?.cleanTitle ?? rawTitle).trim()
 

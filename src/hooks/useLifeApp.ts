@@ -6,6 +6,7 @@ import { loadData, saveData } from '../lib/storage'
 import { isSyncEnvReady, pullRemoteSnapshot, pushRemoteSnapshot } from '../lib/sync'
 import type {
   AppSettings,
+  DayPlan,
   DifficultyRecord,
   FinishTimerPayload,
   FocusSession,
@@ -64,6 +65,104 @@ function appendRelaxWindow(data: LifeAppData, sourceType: RelaxWindow['sourceTyp
   }
 }
 
+function createTodayItemFromTask(task: TaskDefinition, order: number): TodayItem {
+  return {
+    id: createId('today'),
+    sourceTaskId: task.id,
+    title: task.title,
+    kind: task.kind,
+    isDone: false,
+    order,
+    steps:
+      task.kind === 'routine'
+        ? [
+            {
+              id: createId('step'),
+              title: `完成：${task.title}`,
+              isDone: false,
+              completedAt: undefined,
+            },
+          ]
+        : [],
+    createdAt: new Date().toISOString(),
+  }
+}
+
+function getForcedDeadlineTasks(taskDefs: TaskDefinition[]): TaskDefinition[] {
+  return taskDefs
+    .filter((task) => task.kind === 'normal' && !task.archived && Boolean(task.deadlineDate?.trim()))
+    .sort((left, right) => dayjs(left.deadlineDate).valueOf() - dayjs(right.deadlineDate).valueOf())
+}
+
+function syncDeadlineTasksIntoPlan(plan: DayPlan, taskDefs: TaskDefinition[]): DayPlan {
+  const forcedTasks = getForcedDeadlineTasks(taskDefs)
+
+  if (forcedTasks.length === 0) {
+    return plan
+  }
+
+  const existingSourceIds = new Set(
+    plan.todayItems.map((item) => item.sourceTaskId).filter((taskId): taskId is string => Boolean(taskId)),
+  )
+  const additions = forcedTasks
+    .filter((task) => !existingSourceIds.has(task.id))
+    .map((task, index) => createTodayItemFromTask(task, plan.todayItems.length + index + 1))
+
+  if (additions.length === 0) {
+    return plan
+  }
+
+  return {
+    ...plan,
+    todayItems: [...plan.todayItems, ...additions].map((item, index) => ({ ...item, order: index + 1 })),
+  }
+}
+
+function syncDeadlineTasksForDay(data: LifeAppData, dayKey: string): LifeAppData {
+  const plan = data.dayPlans[dayKey]
+
+  if (!plan) {
+    return data
+  }
+
+  const syncedPlan = syncDeadlineTasksIntoPlan(plan, data.taskDefs)
+
+  if (syncedPlan === plan) {
+    return data
+  }
+
+  return {
+    ...data,
+    dayPlans: {
+      ...data.dayPlans,
+      [dayKey]: syncedPlan,
+    },
+  }
+}
+
+function syncDeadlineTaskCompletion(data: LifeAppData, todayItem?: TodayItem): LifeAppData {
+  if (!todayItem?.sourceTaskId) {
+    return data
+  }
+
+  const task = data.taskDefs.find((item) => item.id === todayItem.sourceTaskId)
+
+  if (!task || task.kind !== 'normal' || !task.deadlineDate?.trim()) {
+    return data
+  }
+
+  const shouldArchive = todayItem.isDone
+
+  if (Boolean(task.archived) === shouldArchive) {
+    return data
+  }
+
+  return {
+    ...data,
+    taskDefs: data.taskDefs.map((item) => (item.id === task.id ? { ...item, archived: shouldArchive } : item)),
+  }
+}
+
 function stampData(data: LifeAppData): LifeAppData {
   return {
     ...data,
@@ -85,14 +184,19 @@ export function useLifeApp() {
   }, [data])
 
   useEffect(() => {
-    setData((prev) => ensureDayPlan(prev, dayKey))
-  }, [dayKey])
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const synced = syncDeadlineTasksForDay(next, dayKey)
+
+      return synced === next ? next : stampData(synced)
+    })
+  }, [dayKey, data.taskDefs])
 
   useEffect(() => {
     saveData(data)
   }, [data])
 
-  const safeData = useMemo(() => ensureDayPlan(data, dayKey), [data, dayKey])
+  const safeData = useMemo(() => syncDeadlineTasksForDay(ensureDayPlan(data, dayKey), dayKey), [data, dayKey])
   const dayPlan = safeData.dayPlans[dayKey] ?? createEmptyDayPlan(dayKey, safeData.taskDefs)
   const activeRelaxWindow = safeData.relaxWindows.find((window) => !window.used && dayjs(window.expiresAt).isAfter(dayjs()))
   const syncReady = Boolean(safeData.settings.syncEnabled && safeData.settings.syncSpaceId.trim() && isSyncEnvReady())
@@ -187,7 +291,7 @@ export function useLifeApp() {
     setSyncMessage('已把这台设备的数据上传到云端。')
   }
 
-  const addTaskDefinition = (title: string, kind: TaskKind, scheduleTime?: string) => {
+  const addTaskDefinition = (title: string, kind: TaskKind, scheduleTime?: string, deadlineDate?: string) => {
     const parsedInput = parseQuickTaskInput(title, kind, scheduleTime)
     if (!parsedInput.title) return
 
@@ -196,13 +300,26 @@ export function useLifeApp() {
       title: parsedInput.title,
       kind: parsedInput.kind,
       scheduleTime: parsedInput.scheduleTime,
+      deadlineDate: parsedInput.kind === 'normal' ? deadlineDate?.trim() || undefined : undefined,
       createdAt: new Date().toISOString(),
     }
 
-    setData((prev) => ({
-      ...stampData(prev),
-      taskDefs: [task, ...prev.taskDefs],
-    }))
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const nextTaskDefs = [task, ...next.taskDefs]
+      const nextPlan = task.deadlineDate ? syncDeadlineTasksIntoPlan(clonePlan(next.dayPlans[dayKey]), nextTaskDefs) : next.dayPlans[dayKey]
+
+      return stampData({
+        ...next,
+        taskDefs: nextTaskDefs,
+        dayPlans: task.deadlineDate
+          ? {
+              ...next.dayPlans,
+              [dayKey]: nextPlan,
+            }
+          : next.dayPlans,
+      })
+    })
   }
 
   const quickStartTodayTask = (title: string, firstStep?: string) => {
@@ -274,16 +391,7 @@ export function useLifeApp() {
       const existing = plan.todayItems.find((item) => item.sourceTaskId === taskId && !item.isDone)
       if (existing) return plan
 
-      const newItem: TodayItem = {
-        id: createId('today'),
-        sourceTaskId: task.id,
-        title: task.title,
-        kind: task.kind,
-        isDone: false,
-        order: plan.todayItems.length + 1,
-        steps: [],
-        createdAt: new Date().toISOString(),
-      }
+      const newItem = createTodayItemFromTask(task, plan.todayItems.length + 1)
 
       return {
         ...plan,
@@ -312,12 +420,8 @@ export function useLifeApp() {
         plan.todayItems = [
           ...plan.todayItems,
           {
+            ...createTodayItemFromTask(task, plan.todayItems.length + 1),
             id: todayItemId,
-            sourceTaskId: task.id,
-            title: task.title,
-            kind: task.kind,
-            isDone: false,
-            order: plan.todayItems.length + 1,
             steps: starterStepId && starterStepTitle
               ? [
                   {
@@ -328,7 +432,6 @@ export function useLifeApp() {
                   },
                 ]
               : [],
-            createdAt: new Date().toISOString(),
           },
         ]
       } else if (starterStepId && starterStepTitle) {
@@ -415,6 +518,7 @@ export function useLifeApp() {
       const next = ensureDayPlan(prev, dayKey)
       const plan = clonePlan(next.dayPlans[dayKey])
       let changedSource: TodayItem | undefined
+      let updatedItem: TodayItem | undefined
       const now = new Date().toISOString()
 
       plan.todayItems = plan.todayItems.map((item) => {
@@ -430,11 +534,13 @@ export function useLifeApp() {
               completedAt: isDone ? step.completedAt ?? now : undefined,
             }))
 
-        return {
+        updatedItem = {
           ...item,
           isDone,
           steps,
         }
+
+        return updatedItem
       })
 
       let updated: LifeAppData = stampData({
@@ -448,6 +554,8 @@ export function useLifeApp() {
       if (changedSource && !changedSource.isDone) {
         updated = appendRelaxWindow(updated, changedSource.kind === 'routine' ? 'routine' : 'task', changedSource.id)
       }
+
+      updated = syncDeadlineTaskCompletion(updated, updatedItem)
 
       return updated
     })
@@ -525,9 +633,12 @@ export function useLifeApp() {
   }
 
   const toggleStepDone = (todayItemId: string, stepId: string) => {
-    updateDayPlan((plan) => ({
-      ...plan,
-      todayItems: plan.todayItems.map((item) => {
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const plan = clonePlan(next.dayPlans[dayKey])
+      let updatedItem: TodayItem | undefined
+
+      plan.todayItems = plan.todayItems.map((item) => {
         if (item.id !== todayItemId) return item
 
         const steps = item.steps.map((step) =>
@@ -540,14 +651,27 @@ export function useLifeApp() {
             : step,
         )
         const allDone = steps.length > 0 && steps.every((step) => step.isDone)
-
-        return {
+        updatedItem = {
           ...item,
           steps,
           isDone: allDone,
         }
-      }),
-    }))
+
+        return updatedItem
+      })
+
+      let updated: LifeAppData = stampData({
+        ...next,
+        dayPlans: {
+          ...next.dayPlans,
+          [dayKey]: plan,
+        },
+      })
+
+      updated = syncDeadlineTaskCompletion(updated, updatedItem)
+
+      return updated
+    })
   }
 
   const addAvoidItem = (text: string) => {
@@ -683,6 +807,35 @@ export function useLifeApp() {
     })
   }
 
+  const finishBreakTimer = () => {
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const activeTimer = next.activeTimer
+
+      if (!activeTimer || activeTimer.mode !== 'shortBreak') {
+        return next
+      }
+
+      const session: FocusSession = {
+        id: createId('focus'),
+        dayKey,
+        todayItemId: activeTimer.dayItemId,
+        stepId: activeTimer.stepId,
+        mode: activeTimer.mode,
+        startedAt: activeTimer.startedAt,
+        endedAt: new Date().toISOString(),
+        plannedMinutes: activeTimer.durationMinutes,
+        status: 'completed',
+      }
+
+      return stampData({
+        ...next,
+        activeTimer: null,
+        focusSessions: [session, ...next.focusSessions],
+      })
+    })
+  }
+
   const finishTimer = (payload: FinishTimerPayload) => {
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
@@ -721,7 +874,16 @@ export function useLifeApp() {
 
       let updated: LifeAppData = stampData({
         ...next,
-        activeTimer: null,
+        activeTimer:
+          payload.completed && activeTimer.mode === 'focus' && next.settings.breakMinutes > 0
+            ? {
+                mode: 'shortBreak',
+                dayItemId: activeTimer.dayItemId,
+                stepId: activeTimer.stepId,
+                startedAt: new Date().toISOString(),
+                durationMinutes: next.settings.breakMinutes,
+              }
+            : null,
         focusSessions: [session, ...next.focusSessions],
         dayPlans: {
           ...next.dayPlans,
@@ -775,9 +937,10 @@ export function useLifeApp() {
         }
       }
 
-      if (payload.completed) {
-        updated = appendRelaxWindow(updated, 'focus', session.id)
-      }
+      const latestItem = activeTimer.dayItemId
+        ? updated.dayPlans[dayKey].todayItems.find((item) => item.id === activeTimer.dayItemId)
+        : undefined
+      updated = syncDeadlineTaskCompletion(updated, latestItem)
 
       return updated
     })
@@ -888,6 +1051,7 @@ export function useLifeApp() {
       updateSettings,
       startFocusTimer,
       cancelTimer,
+      finishBreakTimer,
       finishTimer,
       consumeRelaxWindow,
       saveReview,

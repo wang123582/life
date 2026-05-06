@@ -76,6 +76,29 @@ export function createTaskDefinition(title: string, kind: TaskKind, scheduleTime
   }
 }
 
+function createTodayItemFromTask(task: TaskDefinition, order: number) {
+  return {
+    id: createId('today'),
+    sourceTaskId: task.id,
+    title: task.title,
+    kind: task.kind,
+    isDone: false,
+    order,
+    steps:
+      task.kind === 'routine'
+        ? [
+            {
+              id: createId('step'),
+              title: `完成：${task.title}`,
+              isDone: false,
+              completedAt: undefined,
+            },
+          ]
+        : [],
+    createdAt: new Date().toISOString(),
+  }
+}
+
 function defaultDeviceName(): string {
   if (typeof navigator === 'undefined') {
     return '这台设备'
@@ -114,27 +137,16 @@ export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefin
   const routines = taskDefs
     .filter((task) => task.kind === 'routine' && !task.archived)
     .slice(0, 2)
-    .map((task, index) => ({
-      id: createId('today'),
-      sourceTaskId: task.id,
-      title: task.title,
-      kind: task.kind,
-      isDone: false,
-      order: index + 1,
-      steps: [
-        {
-          id: createId('step'),
-          title: `完成：${task.title}`,
-          isDone: false,
-          completedAt: undefined,
-        },
-      ],
-      createdAt: new Date().toISOString(),
-    }))
+    .map((task, index) => createTodayItemFromTask(task, index + 1))
+
+  const deadlineTasks = taskDefs
+    .filter((task) => task.kind === 'normal' && !task.archived && Boolean(task.deadlineDate?.trim()))
+    .sort((left, right) => dayjs(left.deadlineDate).valueOf() - dayjs(right.deadlineDate).valueOf())
+    .map((task, index) => createTodayItemFromTask(task, routines.length + index + 1))
 
   return {
     dayKey,
-    todayItems: routines,
+    todayItems: [...routines, ...deadlineTasks],
     avoidItems: [],
     communicationDone: false,
     communicationNote: '',
