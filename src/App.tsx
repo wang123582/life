@@ -1610,7 +1610,7 @@ function App() {
                       展开更多设置
                     </button>
                   ) : null}
-                  <p className="muted">手机上一般只填一行就够了。像成熟任务软件一样，你可以直接写「吃饭 12:30」或「晚上洗澡 21:30」，系统会自动识别成固定提醒。</p>
+
                   <button type="submit" className="primary-button">
                     加入任务池
                   </button>
