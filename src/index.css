@@ -42,22 +42,22 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 352px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .sidebar {
-  padding: 28px 20px;
+  padding: 20px 16px;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 12, 25, 0.8);
   backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .brand {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
@@ -101,7 +101,7 @@ button {
 
 .nav-button {
   text-align: left;
-  padding: 14px 16px;
+  padding: 12px 14px;
   background: rgba(255, 255, 255, 0.04);
   color: #dce4ff;
 }
@@ -139,10 +139,10 @@ button {
 }
 
 .main-content {
-  padding: 28px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .topbar-copy {
@@ -180,7 +180,7 @@ button {
 .topbar-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .topbar-tag,
@@ -205,16 +205,16 @@ button {
 .feedback-strip {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   align-items: center;
-  padding: 16px 18px;
-  border-radius: 20px;
+  padding: 14px 16px;
+  border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .feedback-strip strong {
   display: block;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .feedback-strip p {
@@ -300,9 +300,9 @@ button {
 .goal-banner {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px;
-  border-radius: 22px;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
   border: 1px solid rgba(110, 132, 255, 0.22);
   background: linear-gradient(135deg, rgba(95, 117, 255, 0.18), rgba(142, 99, 255, 0.12));
 }
@@ -310,17 +310,17 @@ button {
 .focus-strip {
   display: flex;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
   align-items: center;
-  padding: 18px 20px;
-  border-radius: 22px;
+  padding: 16px 18px;
+  border-radius: 20px;
   border: 1px solid rgba(69, 199, 128, 0.25);
   background: linear-gradient(135deg, rgba(69, 199, 128, 0.16), rgba(95, 117, 255, 0.12));
 }
 
 .focus-strip strong {
   display: block;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .focus-strip p {
@@ -338,14 +338,14 @@ button {
 .goal-banner h3 {
   display: block;
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .quick-start-card {
   display: grid;
-  gap: 16px;
-  padding: 16px 18px;
-  border-radius: 20px;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
   border: 1px solid rgba(110, 132, 255, 0.18);
   background: linear-gradient(135deg, rgba(110, 132, 255, 0.12), rgba(88, 205, 170, 0.08));
 }
@@ -430,8 +430,8 @@ button {
 }
 
 .panel {
-  border-radius: 24px;
-  padding: 20px;
+  border-radius: 20px;
+  padding: 18px;
   background: linear-gradient(180deg, rgba(17, 21, 40, 0.92), rgba(13, 17, 32, 0.92));
 }
 
@@ -440,7 +440,7 @@ button {
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .panel-actions {
@@ -454,25 +454,25 @@ button {
 
 .page-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 1fr);
+  gap: 16px;
 }
 
 .page-grid.narrow {
-  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.9fr);
 }
 
 .column-main,
 .column-side {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .summary-card {
@@ -492,16 +492,16 @@ button {
 
 .task-list {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .task-list.compact {
-  gap: 10px;
+  gap: 8px;
 }
 
 .task-card {
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 18px;
+  padding: 14px;
   border-left: 4px solid rgba(95, 117, 255, 0.5);
   background: linear-gradient(180deg, rgba(18, 24, 48, 0.92), rgba(13, 17, 33, 0.92));
 }
