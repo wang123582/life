@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { TimePicker } from './components/TimePicker'
 import { playAlarmSound, playReminderSound } from './lib/alarm'
-import { difficultyTemplateLabels, encouragementMessages, stateTemplateLabels } from './lib/defaults'
+import { difficultyTemplateLabels, encouragementMessages, presetInterventions, stateTemplateLabels } from './lib/defaults'
 import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, sendTodayReportToFeishu } from './lib/feishu'
 import { canUseFocusLock, getFocusLockStatus, openFocusLockAccessibilitySettings, saveFocusLockConfig } from './lib/focusLock'
 import {
@@ -97,7 +97,9 @@ function App() {
   const [stateType, setStateType] = useState<StateType>('distracted')
   const [stateTrigger, setStateTrigger] = useState('')
   const [stateResponse, setStateResponse] = useState('')
-  const [stateResult, setStateResult] = useState<'better' | 'same' | 'worse'>('better')
+  const [interventionStep, setInterventionStep] = useState<'pick-state' | 'try-method' | 'rate'>('pick-state')
+  const [activeIntervention, setActiveIntervention] = useState('')
+  const [customMethod, setCustomMethod] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string>('')
   const [expandedTaskId, setExpandedTaskId] = useState<string>('')
   const [showMobileTodayExtras, setShowMobileTodayExtras] = useState(false)
@@ -601,13 +603,6 @@ function App() {
     event.preventDefault()
     actions.addRuleDefinition(ruleText, ruleType)
     setRuleText('')
-  }
-
-  const handleAddState = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    actions.addStateRecord(stateType, stateTrigger, stateResponse, stateResult)
-    setStateTrigger('')
-    setStateResponse('')
   }
 
   const handleFinishTimer = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1484,85 +1479,134 @@ function App() {
                 </div>
               </Section>
 
-              <Section kicker="Support" title="卡住了再展开" subtitle="默认先做事。只有在卡住、失守或想复盘时，再展开下面这些。">
+              <Section kicker="Support" title="卡住了？试试这些" subtitle="选一个你现在的状态，系统会建议你做什么。试完打个分，好用的方法会记下来。">
                 <div className="compact-stack">
-                  <details className="info-details">
-                    <summary>展开状态与交流</summary>
-                    <div className="stack-form top-space">
-                      <label className="checkbox-row">
-                        <input
-                          type="checkbox"
-                          checked={dayPlan.communicationDone}
-                          onChange={(event) => actions.setCommunication(event.target.checked, communicationNote)}
-                        />
-                        <span>今天已经主动和一个人认真交流过</span>
-                      </label>
-                      <textarea
-                        value={communicationNote}
-                        onChange={(event) => setCommunicationNote(event.target.value)}
-                        onBlur={() => actions.setCommunication(dayPlan.communicationDone, communicationNote)}
-                        placeholder="记一下你联系了谁，或者准备联系谁。"
-                        rows={3}
-                      />
-
-                      <form className="stack-form" onSubmit={handleAddState}>
-                        <label>
-                          当前状态
-                          <select value={stateType} onChange={(event) => setStateType(event.target.value as StateType)}>
-                            {Object.entries(stateTemplateLabels).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          诱因
-                          <input value={stateTrigger} onChange={(event) => setStateTrigger(event.target.value)} placeholder="例如：刷了一会儿手机后停不下来" />
-                        </label>
-                        <label>
-                          应对
-                          <input value={stateResponse} onChange={(event) => setStateResponse(event.target.value)} placeholder="例如：先走动 5 分钟再回来" />
-                        </label>
-                        <div className="inline-grid compact-inline-grid">
-                          <label>
-                            结果
-                            <select value={stateResult} onChange={(event) => setStateResult(event.target.value as 'better' | 'same' | 'worse')}>
-                              <option value="better">变好了</option>
-                              <option value="same">差不多</option>
-                              <option value="worse">更糟了</option>
-                            </select>
-                          </label>
-                          <button type="submit" className="primary-button">
-                            记下状态
+                  {interventionStep === 'pick-state' ? (
+                    <div className="stack-form">
+                      <p className="muted">现在什么感觉？</p>
+                      <div className="chip-list">
+                        {Object.entries(stateTemplateLabels).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`chip ${stateType === value ? 'active' : ''}`}
+                            onClick={() => {
+                              setStateType(value as StateType)
+                              setInterventionStep('try-method')
+                            }}
+                          >
+                            {label}
                           </button>
-                        </div>
-                      </form>
+                        ))}
+                      </div>
+                    </div>
+                  ) : interventionStep === 'try-method' ? (
+                    <div className="stack-form">
+                      <div className="intervention-header">
+                        <span className="chip active">{stateTemplateLabels[stateType]}</span>
+                        <button type="button" className="ghost-button" onClick={() => setInterventionStep('pick-state')}>
+                          换一个
+                        </button>
+                      </div>
+                      <p className="muted">试试下面这些，选一个去做：</p>
+                      <div className="intervention-list">
+                        {presetInterventions
+                          .filter((m) => m.forStates.includes(stateType))
+                          .map((method) => (
+                            <button
+                              key={method.id}
+                              type="button"
+                              className={`intervention-card ${activeIntervention === method.id ? 'active' : ''}`}
+                              onClick={() => {
+                                setActiveIntervention(method.id)
+                                setStateResponse(method.label)
+                                setInterventionStep('rate')
+                              }}
+                            >
+                              <strong>{method.label}</strong>
+                              {method.duration ? <span className="intervention-duration">{method.duration} 分钟</span> : null}
+                            </button>
+                          ))}
+                      </div>
+                      <div className="inline-form">
+                        <input
+                          value={customMethod}
+                          onChange={(event) => setCustomMethod(event.target.value)}
+                          placeholder="或者写你自己的方法…"
+                        />
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          disabled={!customMethod.trim()}
+                          onClick={() => {
+                            setStateResponse(customMethod.trim())
+                            setActiveIntervention('custom')
+                            setInterventionStep('rate')
+                          }}
+                        >
+                          去试
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="stack-form">
+                      <div className="intervention-header">
+                        <span className="chip active">{stateTemplateLabels[stateType]}</span>
+                        <span className="muted">→ {stateResponse}</span>
+                      </div>
+                      <p className="muted">试完了？感觉怎么样？</p>
+                      <div className="intervention-rate-buttons">
+                        {(['better', 'same', 'worse'] as const).map((result) => (
+                          <button
+                            key={result}
+                            type="button"
+                            className={`ghost-button ${result === 'better' ? 'success-button' : result === 'worse' ? 'danger-button' : ''}`}
+                            onClick={() => {
+                              actions.addStateRecord(stateType, stateTrigger, stateResponse, result)
+                              setInterventionStep('pick-state')
+                              setActiveIntervention('')
+                              setCustomMethod('')
+                              setStateResponse('')
+                              setStateTrigger('')
+                            }}
+                          >
+                            {result === 'better' ? '好多了' : result === 'same' ? '没变化' : '更糟了'}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        value={stateTrigger}
+                        onChange={(event) => setStateTrigger(event.target.value)}
+                        placeholder="可选：记一下诱因是什么"
+                      />
+                    </div>
+                  )}
 
-                      <ul className="log-list compact-log-list">
-                        {todayStateRecords.slice(0, 3).map((record) => (
+                  {todayStateRecords.length > 0 ? (
+                    <details className="info-details">
+                      <summary>今天的尝试记录（{todayStateRecords.length}）</summary>
+                      <ul className="log-list compact-log-list top-space">
+                        {todayStateRecords.slice(0, 5).map((record) => (
                           <li key={record.id}>
                             <strong>{stateTemplateLabels[record.stateType]}</strong>
-                            <span>{record.trigger || '未写诱因'}</span>
+                            <span>→ {record.response || '未记录方法'}</span>
+                            <span className={record.result === 'better' ? 'success' : record.result === 'worse' ? 'danger' : ''}>
+                              {record.result === 'better' ? '✓ 好了' : record.result === 'same' ? '— 没变' : '✗ 更糟'}
+                            </span>
                           </li>
                         ))}
                       </ul>
-                    </div>
-                  </details>
+                    </details>
+                  ) : null}
 
-                  <details className="info-details">
-                    <summary>展开卡点记录</summary>
-                    <ul className="log-list highlight-log-list top-space">
-                      {todayDifficultyRecords.length === 0 ? <li>现在还没有卡点记录。</li> : null}
-                      {todayDifficultyRecords.slice(0, 4).map((record) => (
-                        <li key={record.id}>
-                          <strong>{difficultyTemplateLabels[record.type]}</strong>
-                          <span>{record.note || '这轮没有写清具体卡点。'}</span>
-                          <span>下一步：{record.nextAction || '还没写下一步。'}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={dayPlan.communicationDone}
+                      onChange={(event) => actions.setCommunication(event.target.checked, communicationNote)}
+                    />
+                    <span>今天已经主动和一个人认真交流过</span>
+                  </label>
                 </div>
               </Section>
             </div>

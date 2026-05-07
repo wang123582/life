@@ -28,6 +28,24 @@ export const stateTemplateLabels: Record<StateType, string> = {
   numb_scroll: '麻木刷手机',
 }
 
+export interface InterventionMethod {
+  id: string
+  label: string
+  duration?: number // minutes
+  forStates: StateType[]
+}
+
+export const presetInterventions: InterventionMethod[] = [
+  { id: 'eyes-closed', label: '闭目养神', duration: 5, forStates: ['tired', 'irritable', 'distracted'] },
+  { id: 'walk', label: '出去走一走', duration: 5, forStates: ['tired', 'numb_scroll', 'stuck', 'delay'] },
+  { id: 'recall-goal', label: '回想最开始想做什么', forStates: ['distracted', 'numb_scroll', 'delay', 'stuck'] },
+  { id: 'deep-breath', label: '深呼吸 10 次', duration: 2, forStates: ['irritable', 'tired', 'stuck'] },
+  { id: 'drink-water', label: '喝杯水 / 洗把脸', duration: 2, forStates: ['tired', 'numb_scroll'] },
+  { id: 'talk-self', label: '写一句话：我现在最想…', forStates: ['delay', 'stuck', 'distracted'] },
+  { id: 'shrink-task', label: '把任务缩到最小一步', forStates: ['delay', 'stuck', 'too_big' as StateType] },
+  { id: 'change-place', label: '换个位置坐', duration: 1, forStates: ['numb_scroll', 'distracted', 'tired'] },
+]
+
 export const difficultyTemplateLabels: Record<DifficultyType, string> = {
   too_big: '任务太大',
   dont_know: '不会做',
