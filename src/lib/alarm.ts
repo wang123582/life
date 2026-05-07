@@ -55,20 +55,28 @@ export function playReminderSound(): void {
 
     const now = ctx.currentTime
 
-    // Two gentle tones: lower pitch, softer
-    const frequencies = [660, 880]
-    for (let i = 0; i < frequencies.length; i++) {
-      const startTime = now + i * 0.3
-      const endTime = startTime + 0.25
+    // Attention-grabbing pattern: 3 sets of ascending double-beeps
+    const pattern = [
+      { freq: 660, time: 0 },
+      { freq: 880, time: 0.2 },
+      { freq: 660, time: 0.6 },
+      { freq: 880, time: 0.8 },
+      { freq: 660, time: 1.2 },
+      { freq: 880, time: 1.4 },
+    ]
+
+    for (const note of pattern) {
+      const startTime = now + note.time
+      const endTime = startTime + 0.15
 
       const oscillator = ctx.createOscillator()
       const gainNode = ctx.createGain()
 
       oscillator.type = 'sine'
-      oscillator.frequency.setValueAtTime(frequencies[i], startTime)
+      oscillator.frequency.setValueAtTime(note.freq, startTime)
 
       gainNode.gain.setValueAtTime(0, startTime)
-      gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.03)
+      gainNode.gain.linearRampToValueAtTime(0.4, startTime + 0.02)
       gainNode.gain.linearRampToValueAtTime(0, endTime)
 
       oscillator.connect(gainNode)

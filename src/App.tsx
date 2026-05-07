@@ -484,7 +484,7 @@ function App() {
           `你刚才停住了，回到：${primaryTodayItem.title}。下一步：${primaryStep?.title ?? '先拆一个最小动作'}`,
         )
       }
-    }, 30000)
+    }, 10000)
 
     return () => window.clearInterval(intervalId)
   }, [activeTimer, data.taskDefs, dayKey, dayPlan.todayItems, lastInteractionAt, lastReminderKey, primaryStep, primaryTodayItem])
