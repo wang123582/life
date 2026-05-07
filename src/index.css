@@ -18,11 +18,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(101, 181, 255, 0.4), transparent 32%),
-    radial-gradient(circle at 85% 10%, rgba(91, 227, 195, 0.18), transparent 24%),
-    radial-gradient(circle at 15% 20%, rgba(255, 196, 98, 0.14), transparent 18%),
-    linear-gradient(180deg, #0b1020 0%, #090d18 100%);
+  background: #0c0f1a;
 }
 
 button,
@@ -42,24 +38,23 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .sidebar {
-  padding: 20px 16px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(8, 12, 25, 0.8);
-  backdrop-filter: blur(20px);
+  padding: 16px 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0a0d18;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .brand {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .brand-subtitle,
@@ -86,8 +81,8 @@ button {
 .chip,
 .task-title-button {
   border: 0;
-  border-radius: 14px;
-  transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease, border-color 0.18s ease;
+  border-radius: 8px;
+  transition: background 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
 }
 
 .nav-button:hover,
@@ -96,20 +91,20 @@ button {
 .tiny-button:hover,
 .chip:hover,
 .task-card:hover {
-  transform: translateY(-1px);
+  opacity: 0.9;
 }
 
 .nav-button {
   text-align: left;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #dce4ff;
+  padding: 10px 12px;
+  background: transparent;
+  color: #9ca3b8;
+  font-size: 14px;
 }
 
 .nav-button.active {
-  background: linear-gradient(135deg, #4f9dff, #7b61ff);
-  color: white;
-  transform: translateX(4px);
+  background: rgba(110, 132, 255, 0.12);
+  color: #dce4ff;
 }
 
 .sidebar-card,
@@ -119,14 +114,14 @@ button {
 .relax-card,
 .floating-timer,
 .modal {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(18, 24, 46, 0.88);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(16, 20, 36, 0.95);
+  box-shadow: none;
 }
 
 .sidebar-card {
-  padding: 16px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 10px;
 }
 
 .muted-label {
@@ -142,7 +137,7 @@ button {
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .topbar-copy {
@@ -154,15 +149,15 @@ button {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(110, 132, 255, 0.14);
-  border: 1px solid rgba(110, 132, 255, 0.18);
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(110, 132, 255, 0.1);
+  border: 1px solid rgba(110, 132, 255, 0.14);
   color: #bcc7ff;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
 }
 
 .topbar {
@@ -188,12 +183,13 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
   color: #dbe5ff;
+  font-size: 13px;
 }
 
 .topbar-tag.warning {
@@ -205,16 +201,16 @@ button {
 .feedback-strip {
   display: flex;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .feedback-strip strong {
   display: block;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .feedback-strip p {
@@ -222,26 +218,26 @@ button {
 }
 
 .feedback-strip.info {
-  background: linear-gradient(135deg, rgba(79, 157, 255, 0.18), rgba(123, 97, 255, 0.12));
-  border-color: rgba(79, 157, 255, 0.22);
+  background: rgba(79, 157, 255, 0.06);
+  border-color: rgba(79, 157, 255, 0.14);
 }
 
 .feedback-strip.success {
-  background: linear-gradient(135deg, rgba(88, 224, 180, 0.18), rgba(79, 157, 255, 0.12));
-  border-color: rgba(88, 224, 180, 0.24);
+  background: rgba(88, 224, 180, 0.06);
+  border-color: rgba(88, 224, 180, 0.14);
 }
 
 .feedback-strip.warning {
-  background: linear-gradient(135deg, rgba(255, 196, 98, 0.18), rgba(255, 122, 122, 0.12));
-  border-color: rgba(255, 196, 98, 0.24);
+  background: rgba(255, 196, 98, 0.06);
+  border-color: rgba(255, 196, 98, 0.14);
 }
 
 .feedback-badge {
   display: inline-flex;
   align-items: center;
   max-width: 320px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-weight: 600;
   color: #eef4ff;
 }
@@ -269,10 +265,10 @@ button {
 }
 
 .topbar-actions-details {
-  min-width: 164px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  min-width: 148px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
   padding: 10px 12px;
 }
 
@@ -300,27 +296,27 @@ button {
 .goal-banner {
   display: flex;
   justify-content: space-between;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(110, 132, 255, 0.22);
-  background: linear-gradient(135deg, rgba(95, 117, 255, 0.18), rgba(142, 99, 255, 0.12));
+  gap: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(110, 132, 255, 0.16);
+  background: rgba(95, 117, 255, 0.08);
 }
 
 .focus-strip {
   display: flex;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
-  padding: 16px 18px;
-  border-radius: 20px;
-  border: 1px solid rgba(69, 199, 128, 0.25);
-  background: linear-gradient(135deg, rgba(69, 199, 128, 0.16), rgba(95, 117, 255, 0.12));
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(69, 199, 128, 0.18);
+  background: rgba(69, 199, 128, 0.06);
 }
 
 .focus-strip strong {
   display: block;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .focus-strip p {
@@ -338,16 +334,16 @@ button {
 .goal-banner h3 {
   display: block;
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
 }
 
 .quick-start-card {
   display: grid;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(110, 132, 255, 0.18);
-  background: linear-gradient(135deg, rgba(110, 132, 255, 0.12), rgba(88, 205, 170, 0.08));
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(110, 132, 255, 0.14);
+  background: rgba(110, 132, 255, 0.05);
 }
 
 .quick-start-steps {
@@ -395,12 +391,12 @@ button {
 .planner-suggestion-card {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .planner-suggestion-card strong {
@@ -430,17 +426,17 @@ button {
 }
 
 .panel {
-  border-radius: 20px;
-  padding: 18px;
-  background: linear-gradient(180deg, rgba(17, 21, 40, 0.92), rgba(13, 17, 32, 0.92));
+  border-radius: 10px;
+  padding: 16px;
+  background: rgba(16, 20, 36, 0.95);
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .panel-actions {
@@ -454,61 +450,62 @@ button {
 
 .page-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr);
+  gap: 14px;
 }
 
 .page-grid.narrow {
-  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.9fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr);
 }
 
 .column-main,
 .column-side {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .summary-card {
-  border-radius: 18px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 12px;
 }
 
 .summary-card span {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   color: #9ba6cc;
+  font-size: 12px;
 }
 
 .summary-card strong {
-  font-size: 26px;
+  font-size: 22px;
 }
 
 .task-list {
   display: grid;
-  gap: 12px;
-}
-
-.task-list.compact {
   gap: 8px;
 }
 
+.task-list.compact {
+  gap: 6px;
+}
+
 .task-card {
-  border-radius: 18px;
-  padding: 14px;
-  border-left: 4px solid rgba(95, 117, 255, 0.5);
-  background: linear-gradient(180deg, rgba(18, 24, 48, 0.92), rgba(13, 17, 33, 0.92));
+  border-radius: 10px;
+  padding: 12px;
+  border-left: 3px solid rgba(95, 117, 255, 0.5);
+  background: rgba(16, 20, 36, 0.95);
 }
 
 .task-card.selected {
   border-color: rgba(110, 132, 255, 0.9);
-  box-shadow: 0 0 0 1px rgba(110, 132, 255, 0.25), 0 18px 60px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 1px rgba(110, 132, 255, 0.2);
 }
 
 .task-card.compact {
@@ -526,15 +523,15 @@ button {
 }
 
 .toggle-row {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .simple-reminder-card {
   border-left-color: rgba(88, 205, 170, 0.48);
-  background: linear-gradient(180deg, rgba(15, 33, 40, 0.9), rgba(13, 21, 30, 0.9));
+  background: rgba(15, 28, 30, 0.9);
 }
 
 .task-card-heading {
@@ -548,14 +545,14 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: rgba(110, 132, 255, 0.14);
-  border: 1px solid rgba(110, 132, 255, 0.16);
+  min-width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(110, 132, 255, 0.1);
+  border: 1px solid rgba(110, 132, 255, 0.14);
   color: #cad3ff;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .task-card-top,
@@ -585,8 +582,8 @@ button {
 }
 
 .task-title {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .task-meta-row {
@@ -681,9 +678,9 @@ button {
   display: grid;
   justify-items: start;
   gap: 2px;
-  min-width: 180px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  min-width: 160px;
+  padding: 10px 12px;
+  border-radius: 10px;
   text-align: left;
 }
 
@@ -735,13 +732,12 @@ input,
 textarea,
 select {
   width: 100%;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   color: #f5f7fb;
-  padding: 12px 14px;
+  padding: 10px 12px;
   outline: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 select {
@@ -768,8 +764,8 @@ input[type='checkbox'] {
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: rgba(110, 132, 255, 0.8);
-  box-shadow: 0 0 0 3px rgba(110, 132, 255, 0.18);
+  border-color: rgba(110, 132, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(110, 132, 255, 0.12);
 }
 
 label {
@@ -784,11 +780,12 @@ label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 11px 14px;
+  gap: 6px;
+  padding: 9px 14px;
   color: #f5f7fb;
   border: 1px solid transparent;
   font-weight: 600;
+  font-size: 14px;
 }
 
 button:disabled {
@@ -798,8 +795,8 @@ button:disabled {
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #46a6ff, #8e63ff);
-  box-shadow: 0 12px 24px rgba(70, 166, 255, 0.28);
+  background: linear-gradient(135deg, #4f72ff, #7b61ff);
+  box-shadow: none;
 }
 
 .ghost-button,
@@ -809,8 +806,8 @@ button:disabled {
 }
 
 .tiny-button {
-  min-height: 40px;
-  border-radius: 12px;
+  min-height: 36px;
+  border-radius: 8px;
 }
 
 .tiny-button.subtle {
@@ -886,11 +883,11 @@ button:disabled {
 .step-item {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -987,11 +984,11 @@ button:disabled {
 
 .task-mobile-preview {
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -1022,22 +1019,22 @@ button:disabled {
 }
 
 .focus-title {
-  margin: 0 0 10px;
-  font-size: 20px;
+  margin: 0 0 8px;
+  font-size: 17px;
 }
 
 .compact-title {
-  margin-bottom: 6px;
-  font-size: 18px;
+  margin-bottom: 4px;
+  font-size: 15px;
 }
 
 .relax-card {
-  border-radius: 18px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 14px;
 }
 
 .compact-relax-card {
-  padding: 14px;
+  padding: 12px;
 }
 
 .compact-stack {
@@ -1046,10 +1043,10 @@ button:disabled {
 }
 
 .side-summary-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .compact-inline-grid {
@@ -1062,15 +1059,15 @@ button:disabled {
 }
 
 .sync-summary-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(79, 157, 255, 0.2);
-  background: linear-gradient(135deg, rgba(79, 157, 255, 0.16), rgba(88, 224, 180, 0.1));
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(79, 157, 255, 0.15);
+  background: rgba(79, 157, 255, 0.06);
 }
 
 .sync-summary-card strong {
   display: block;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .sync-summary-card p {
@@ -1080,11 +1077,11 @@ button:disabled {
 
 .settings-basics-card {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .compact-bullet-list {
@@ -1093,10 +1090,10 @@ button:disabled {
 }
 
 .info-details {
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 12px;
 }
 
 .info-details summary {
@@ -1139,10 +1136,10 @@ button:disabled {
 
 .code-block {
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(7, 10, 19, 0.72);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(7, 10, 19, 0.8);
   color: #cfd7f7;
   font-size: 12px;
   line-height: 1.45;
@@ -1154,9 +1151,9 @@ button:disabled {
   position: fixed;
   right: 24px;
   bottom: 24px;
-  width: min(360px, calc(100vw - 32px));
-  border-radius: 20px;
-  padding: 18px;
+  width: min(340px, calc(100vw - 32px));
+  border-radius: 12px;
+  padding: 16px;
   z-index: 30;
 }
 
@@ -1182,9 +1179,9 @@ button:disabled {
 }
 
 .modal {
-  width: min(560px, 100%);
-  border-radius: 24px;
-  padding: 22px;
+  width: min(520px, 100%);
+  border-radius: 12px;
+  padding: 20px;
 }
 
 .empty-hint {
@@ -1204,12 +1201,12 @@ button:disabled {
 }
 
 .highlight-log-list li {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .timeline-list {
@@ -1222,12 +1219,12 @@ button:disabled {
 
 .timeline-item {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .timeline-item p,
@@ -1257,16 +1254,16 @@ button:disabled {
 }
 
 .timeline-empty {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
   color: #95a0bf;
 }
 
 .sync-status {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sync-status.success {
@@ -1288,7 +1285,7 @@ button:disabled {
 
   .sidebar {
     border-right: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .page-grid,
@@ -1302,13 +1299,13 @@ button:disabled {
     position: sticky;
     top: 0;
     z-index: 25;
-    padding: 12px 14px;
-    gap: 12px;
-    background: rgba(8, 12, 25, 0.94);
+    padding: 10px 12px;
+    gap: 10px;
+    background: rgba(8, 12, 25, 0.96);
   }
 
   .brand {
-    font-size: 22px;
+    font-size: 18px;
   }
 
   .brand-subtitle,
@@ -1336,7 +1333,7 @@ button:disabled {
   }
 
   .main-content {
-    padding: 14px;
+    padding: 12px;
   }
 
   .today-page-grid .column-main > .today-overview-section {
@@ -1356,8 +1353,8 @@ button:disabled {
   }
 
   .panel {
-    padding: 16px;
-    border-radius: 20px;
+    padding: 14px;
+    border-radius: 10px;
   }
 
   .topbar-copy {
@@ -1417,16 +1414,16 @@ button:disabled {
   }
 
   .task-index-badge {
-    min-width: 34px;
-    height: 34px;
+    min-width: 28px;
+    height: 28px;
   }
 
   .task-card {
-    padding: 14px;
+    padding: 12px;
   }
 
   .task-title {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .task-meta-row {
