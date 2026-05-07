@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
+import { TimePicker } from './components/TimePicker'
+import { playAlarmSound, playReminderSound } from './lib/alarm'
 import { difficultyTemplateLabels, encouragementMessages, stateTemplateLabels } from './lib/defaults'
 import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, sendTodayReportToFeishu } from './lib/feishu'
 import { canUseFocusLock, getFocusLockStatus, openFocusLockAccessibilitySettings, saveFocusLockConfig } from './lib/focusLock'
@@ -267,6 +269,13 @@ function App() {
     setBlockedTargets(data.settings.blockedTargets.join('\n'))
   }, [data.settings.blockedTargets])
 
+  // Auto-request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission()
+    }
+  }, [])
+
   useEffect(() => {
     const firstPendingItem = actionablePendingItems[0]?.id ?? actionableTodayItems[0]?.id ?? ''
     setSelectedItemId((prev) => prev || firstPendingItem)
@@ -296,6 +305,8 @@ function App() {
     if (!activeTimer || remainingSeconds > 0 || finishOpen) return
 
     setFinishOpen(true)
+
+    playAlarmSound()
 
     if ('Notification' in window && Notification.permission === 'granted') {
       void new Notification('番茄钟结束', {
@@ -432,6 +443,8 @@ function App() {
 
       setLastReminderKey(key)
       setContextReminder(message)
+
+      playReminderSound()
 
       if ('Notification' in window && Notification.permission === 'granted') {
         void new Notification('life 提醒你一下', {
@@ -1580,7 +1593,7 @@ function App() {
                     <span>这是固定生活提醒</span>
                   </label>
                   {taskKind === 'routine' || showPoolAdvanced ? (
-                    <div className="inline-grid">
+                    <div className="stack-form">
                       <label>
                         类型
                         <select value={taskKind} onChange={(event) => setTaskKind(event.target.value as 'normal' | 'routine')}>
@@ -1588,10 +1601,8 @@ function App() {
                           <option value="routine">固定生活任务</option>
                         </select>
                       </label>
-                      <label>
-                        提醒时间（可选）
-                        <input value={taskTime} onChange={(event) => setTaskTime(event.target.value)} placeholder="如 21:00" />
-                      </label>
+                      <label>提醒时间</label>
+                      <TimePicker value={taskTime || '12:00'} onChange={(v) => setTaskTime(v)} />
                     </div>
                   ) : null}
                   {!showPoolAdvanced && taskKind === 'normal' ? (

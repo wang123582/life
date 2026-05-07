@@ -1472,3 +1472,155 @@ button:disabled {
     font-size: 13px;
   }
 }
+
+/* ── Time Picker (wheel / scroll selector) ── */
+
+.time-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.time-picker-separator {
+  font-size: 28px;
+  font-weight: 800;
+  color: #cdd6ff;
+  padding-top: 22px;
+}
+
+.wheel-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 72px;
+}
+
+.wheel-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7f8ab3;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.wheel-viewport {
+  position: relative;
+  overflow: hidden;
+  width: 72px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  touch-action: none;
+}
+
+.wheel-viewport:active {
+  cursor: grabbing;
+}
+
+.wheel-highlight {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(110, 132, 255, 0.22), rgba(88, 205, 170, 0.16));
+  border: 1px solid rgba(110, 132, 255, 0.28);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.wheel-track {
+  position: relative;
+  z-index: 2;
+  will-change: transform;
+  transition: transform 0.18s ease-out;
+}
+
+.wheel-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: #dce4ff;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.wheel-item.selected {
+  color: #fff;
+}
+
+/* ── Layout alignment fixes ── */
+
+.stack-form label {
+  width: 100%;
+}
+
+.inline-grid {
+  align-items: start;
+}
+
+.inline-grid > label {
+  width: 100%;
+}
+
+.task-card.compact {
+  align-items: center;
+}
+
+.task-card.compact > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.task-pool-actions {
+  flex-shrink: 0;
+}
+
+.panel-header > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.page-grid {
+  align-items: start;
+}
+
+.column-main,
+.column-side {
+  align-self: stretch;
+}
+
+.summary-grid .summary-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+@media (max-width: 768px) {
+  .time-picker {
+    gap: 2px;
+  }
+
+  .wheel-column {
+    min-width: 64px;
+  }
+
+  .wheel-viewport {
+    width: 64px;
+  }
+
+  .wheel-item {
+    font-size: 18px;
+  }
+
+  .time-picker-separator {
+    font-size: 24px;
+  }
+}
