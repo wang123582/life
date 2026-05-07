@@ -207,3 +207,57 @@ export async function sendFeishuConnectionTest(payload: FeishuConnectionPayload)
 export async function sendTodayReportToFeishu(payload: FeishuReportPayload): Promise<void> {
   await postToFeishu(payload, buildFeishuBody(payload))
 }
+
+export function buildReportPreviewText(payload: FeishuReportPayload): string {
+  const lines: string[] = []
+  const review = payload.review
+
+  lines.push(`${dayjs(payload.dayKey).format('M 月 D 日')} 今天总结`)
+  lines.push('')
+  lines.push(`交流：${payload.communicationDone ? '已完成' : '未完成'}${payload.communicationNote ? `｜${payload.communicationNote}` : ''}`)
+  lines.push('')
+  lines.push('【今天总结】')
+  lines.push(`完成了什么：${review?.wins || '还没写。'}`)
+  lines.push(`失守了什么：${review?.slips || '还没写。'}`)
+  lines.push(`最常见的状态：${payload.commonStateLabel || '还没选。'}`)
+  lines.push(`明天第一步：${review?.tomorrow || '还没写。'}`)
+  lines.push('')
+  lines.push('【做完的步骤】')
+  if (payload.completedSteps.length > 0) {
+    payload.completedSteps.forEach((step) => {
+      lines.push(`- ${step.taskTitle}｜${step.stepTitle}${step.completedAt ? `（${dayjs(step.completedAt).format('HH:mm')}）` : ''}`)
+    })
+  } else {
+    lines.push('- 今天还没有勾掉任何一步。')
+  }
+  lines.push('')
+  lines.push('【困难日志】')
+  if (payload.difficulties.length > 0) {
+    payload.difficulties.slice(0, 8).forEach((item) => {
+      lines.push(`- ${dayjs(item.createdAt).format('HH:mm')}｜${difficultyTemplateLabels[item.type]}｜${item.note || '未写卡点'}｜下一步：${item.nextAction || '未写'}`)
+    })
+  } else {
+    lines.push('- 今天还没有记录困难。')
+  }
+  lines.push('')
+  lines.push('【专注记录】')
+  if (payload.focusSessions.length > 0) {
+    payload.focusSessions.slice(0, 8).forEach((session) => {
+      lines.push(`- ${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.status === 'completed' ? '完成' : '中断'}｜${session.plannedMinutes} 分钟`)
+    })
+  } else {
+    lines.push('- 今天还没有番茄记录。')
+  }
+
+  return lines.join('\n')
+}
+
+export async function sendFeishuPlainText(payload: FeishuConnectionPayload, text: string): Promise<void> {
+  const prefix = (payload as { keyword?: string }).keyword?.trim()
+    ? `${(payload as { keyword?: string }).keyword!.trim()}\n`
+    : ''
+  await postToFeishu(payload, {
+    msg_type: 'text',
+    content: { text: `${prefix}${text}` },
+  })
+}
