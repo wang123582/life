@@ -2369,12 +2369,6 @@ function App() {
           )}
           {showProcessNotes ? (
             <div className="process-notes-panel">
-              <div className="notes-toolbar">
-                <button type="button" onClick={() => insertNotesMarkdown('\n```\n', '\n```\n', 'code here')}>{'</>'} 代码块</button>
-                <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>{'`'} 行内代码</button>
-                <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
-                <button type="button" onClick={() => insertNotesMarkdown('- ', '\n', '列表项')}>• 列表</button>
-              </div>
               <textarea
                 ref={notesRef}
                 value={dayPlan.processNotes ?? ''}
@@ -2382,6 +2376,12 @@ function App() {
                 placeholder="随时记录想法、发现、卡点…"
                 style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1 }}
               />
+              <div className="notes-toolbar">
+                <button type="button" onClick={() => insertNotesMarkdown('\n```\n', '\n```\n', 'code')}>{'</>'}</button>
+                <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>` `</button>
+                <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
+                <button type="button" onClick={() => insertNotesMarkdown('- ', '\n', '列表')}>•</button>
+              </div>
             </div>
           ) : null}
         </div>
