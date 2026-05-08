@@ -149,8 +149,6 @@ function App() {
   const [isSyncingFeishu, setIsSyncingFeishu] = useState(false)
   const [feishuSyncMessage, setFeishuSyncMessage] = useState('')
   const [feishuSyncStatus, setFeishuSyncStatus] = useState<'success' | 'error' | ''>('')
-  const [feishuPreviewText, setFeishuPreviewText] = useState('')
-  const [showFeishuPreview, setShowFeishuPreview] = useState(false)
   const [isSavingReview, setIsSavingReview] = useState(false)
   const [reviewSaveMessage, setReviewSaveMessage] = useState('')
   const [reviewSaveStatus, setReviewSaveStatus] = useState<'success' | 'error' | ''>('')
@@ -733,44 +731,34 @@ function App() {
       return
     }
 
-    // Generate preview text for user to edit before sending
-    const previewText = buildReportPreviewText({
-      webhookUrl: feishuWebhookUrl.trim(),
-      keyword: feishuKeyword.trim(),
-      secret: feishuSecret.trim(),
-      dayKey,
-      review: savedReview,
-      completedSteps,
-      difficulties: todayDifficultyRecords,
-      focusSessions: todayFocusSessions,
-      commonStateLabel: getStateLabel(savedReview.commonState ?? ''),
-      communicationDone: dayPlan.communicationDone,
-      communicationNote,
-    })
-    setFeishuPreviewText(previewText)
-    setShowFeishuPreview(true)
-    setReviewSaveStatus('success')
-    setReviewSaveMessage('已保存复盘。请检查飞书内容后确认发送。')
-    setIsSavingReview(false)
-  }
-
-  const handleConfirmFeishuSend = async () => {
-    setIsSyncingFeishu(true)
-    setFeishuSyncStatus('')
-    setFeishuSyncMessage('')
+    // Auto-sync to feishu after saving review
     try {
+      const text = buildReportPreviewText({
+        webhookUrl: feishuWebhookUrl.trim(),
+        keyword: feishuKeyword.trim(),
+        secret: feishuSecret.trim(),
+        dayKey,
+        review: savedReview,
+        completedSteps,
+        difficulties: todayDifficultyRecords,
+        focusSessions: todayFocusSessions,
+        commonStateLabel: getStateLabel(savedReview.commonState ?? ''),
+        communicationDone: dayPlan.communicationDone,
+        communicationNote,
+      })
       await sendFeishuPlainText(
         { webhookUrl: feishuWebhookUrl.trim(), keyword: feishuKeyword.trim(), secret: feishuSecret.trim() },
-        feishuPreviewText,
+        text,
       )
+      setReviewSaveStatus('success')
+      setReviewSaveMessage('已保存复盘，并自动同步到飞书。')
       setFeishuSyncStatus('success')
-      setFeishuSyncMessage('已发送到飞书。')
-      setShowFeishuPreview(false)
+      setFeishuSyncMessage('已把今天总结发到飞书。')
     } catch (error) {
-      setFeishuSyncStatus('error')
-      setFeishuSyncMessage(error instanceof Error ? error.message : '同步飞书失败。')
+      setReviewSaveStatus('error')
+      setReviewSaveMessage(`复盘已保存，但飞书同步失败：${error instanceof Error ? error.message : '请稍后再试。'}`)
     } finally {
-      setIsSyncingFeishu(false)
+      setIsSavingReview(false)
     }
   }
 
@@ -939,29 +927,59 @@ function App() {
     window.setTimeout(() => setSyncSqlCopied(false), 2000)
   }
 
-  const handleSyncToFeishu = () => {
-    const reviewPayload = reviewForm.wins || reviewForm.slips || reviewForm.commonState || reviewForm.tomorrow
-      ? {
-          ...reviewForm,
-          updatedAt: dayPlan.review?.updatedAt ?? new Date().toISOString(),
-        }
-      : dayPlan.review
+  const handleSyncToFeishu = async () => {
+    const webhookUrl = feishuWebhookUrl.trim()
+    if (!webhookUrl) {
+      setFeishuSyncStatus('error')
+      setFeishuSyncMessage('先填飞书群机器人的 webhook 地址。')
+      return
+    }
 
-    const previewText = buildReportPreviewText({
-      webhookUrl: feishuWebhookUrl.trim(),
-      keyword: feishuKeyword.trim(),
-      secret: feishuSecret.trim(),
-      dayKey,
-      review: reviewPayload,
-      completedSteps,
-      difficulties: todayDifficultyRecords,
-      focusSessions: todayFocusSessions,
-      commonStateLabel: getStateLabel(reviewPayload?.commonState ?? ''),
-      communicationDone: dayPlan.communicationDone,
-      communicationNote,
-    })
-    setFeishuPreviewText(previewText)
-    setShowFeishuPreview(true)
+    setIsSyncingFeishu(true)
+    setFeishuSyncStatus('')
+    setFeishuSyncMessage('')
+
+    try {
+      const reviewPayload = reviewForm.wins || reviewForm.slips || reviewForm.commonState || reviewForm.tomorrow
+        ? {
+            ...reviewForm,
+            updatedAt: dayPlan.review?.updatedAt ?? new Date().toISOString(),
+          }
+        : dayPlan.review
+
+      const text = buildReportPreviewText({
+        webhookUrl,
+        keyword: feishuKeyword.trim(),
+        secret: feishuSecret.trim(),
+        dayKey,
+        review: reviewPayload,
+        completedSteps,
+        difficulties: todayDifficultyRecords,
+        focusSessions: todayFocusSessions,
+        commonStateLabel: getStateLabel(reviewPayload?.commonState ?? ''),
+        communicationDone: dayPlan.communicationDone,
+        communicationNote,
+      })
+
+      actions.updateSettings({
+        feishuWebhookUrl: webhookUrl,
+        feishuKeyword: feishuKeyword.trim(),
+        feishuSecret: feishuSecret.trim(),
+      })
+
+      await sendFeishuPlainText(
+        { webhookUrl, keyword: feishuKeyword.trim(), secret: feishuSecret.trim() },
+        text,
+      )
+
+      setFeishuSyncStatus('success')
+      setFeishuSyncMessage('已把今天总结、完成步骤和困难日志发到飞书。')
+    } catch (error) {
+      setFeishuSyncStatus('error')
+      setFeishuSyncMessage(error instanceof Error ? error.message : '同步飞书失败。')
+    } finally {
+      setIsSyncingFeishu(false)
+    }
   }
 
   const askNotificationPermission = async () => {
@@ -2234,30 +2252,11 @@ function App() {
                 </ul>
               </Section>
 
-              <Section title="同步到飞书" subtitle="把今天总结、做完的步骤和困难日志直接发到飞书群里。可以先编辑再发。">
+              <Section title="同步到飞书" subtitle="上方「和时钟关联」就是发送内容的预览，直接修改数据即可影响飞书内容。">
                 <div className="stack-form">
-                  {showFeishuPreview ? (
-                    <>
-                      <textarea
-                        value={feishuPreviewText}
-                        onChange={(event) => setFeishuPreviewText(event.target.value)}
-                        rows={14}
-                        style={{ fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.5' }}
-                      />
-                      <div className="inline-form">
-                        <button type="button" className="primary-button" onClick={handleConfirmFeishuSend} disabled={isSyncingFeishu}>
-                          {isSyncingFeishu ? '正在发送…' : '确认发送到飞书'}
-                        </button>
-                        <button type="button" className="ghost-button" onClick={() => setShowFeishuPreview(false)}>
-                          取消
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <button type="button" className="primary-button" onClick={handleSyncToFeishu}>
-                      编辑并同步今天日志到飞书
-                    </button>
-                  )}
+                  <button type="button" className="primary-button" onClick={handleSyncToFeishu} disabled={isSyncingFeishu}>
+                    {isSyncingFeishu ? '正在发送…' : '同步今天日志到飞书'}
+                  </button>
                   {feishuSyncMessage ? (
                     <p className={feishuSyncStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{feishuSyncMessage}</p>
                   ) : null}
