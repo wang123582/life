@@ -2316,37 +2316,48 @@ function App() {
       </main>
 
       {activeTimer ? (
-        <div className="floating-timer">
-          <div>
-            <span className="muted-label">{isBreakTimer ? '正在休息' : '正在专注'}</span>
-            <strong>{formatSeconds(remainingSeconds)}</strong>
-            <p>{isBreakTimer ? `刚完成：${activeItem?.title ?? '这一轮专注'}` : activeItem?.title ?? '未绑定任务'}</p>
-            <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
-          </div>
-          <div className="floating-actions">
-            <button type="button" className="ghost-button" onClick={() => setShowProcessNotes(!showProcessNotes)}>
-              {showProcessNotes ? '收起笔记' : '📝 过程笔记'}
-            </button>
-            {isBreakTimer ? (
-              <button type="button" className="ghost-button" onClick={actions.finishBreakTimer}>
-                提前结束休息
+        <div className={`floating-timer${showProcessNotes ? ' notes-open' : ''}`}>
+          {showProcessNotes ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span><strong style={{ fontSize: 20 }}>{formatSeconds(remainingSeconds)}</strong> {isBreakTimer ? '休息中' : activeItem?.title ?? '专注中'}</span>
+              <button type="button" className="ghost-button" onClick={() => setShowProcessNotes(false)}>收起</button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <span className="muted-label">{isBreakTimer ? '正在休息' : '正在专注'}</span>
+                <strong>{formatSeconds(remainingSeconds)}</strong>
+                <p>{isBreakTimer ? `刚完成：${activeItem?.title ?? '这一轮专注'}` : activeItem?.title ?? '未绑定任务'}</p>
+                <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
+              </div>
+            </>
+          )}
+          {!showProcessNotes && (
+            <div className="floating-actions">
+              <button type="button" className="ghost-button" onClick={() => setShowProcessNotes(true)}>
+                📝 过程笔记
               </button>
-            ) : (
-              <button type="button" className="ghost-button" onClick={() => setFinishOpen(true)}>
-                提前结束并记录
+              {isBreakTimer ? (
+                <button type="button" className="ghost-button" onClick={actions.finishBreakTimer}>
+                  提前结束休息
+                </button>
+              ) : (
+                <button type="button" className="ghost-button" onClick={() => setFinishOpen(true)}>
+                  提前结束并记录
+                </button>
+              )}
+              <button type="button" className="ghost-button danger" onClick={actions.cancelTimer}>
+                {isBreakTimer ? '取消休息' : '取消本轮'}
               </button>
-            )}
-            <button type="button" className="ghost-button danger" onClick={actions.cancelTimer}>
-              {isBreakTimer ? '取消休息' : '取消本轮'}
-            </button>
-          </div>
+            </div>
+          )}
           {showProcessNotes ? (
             <div className="process-notes-panel">
               <textarea
                 value={dayPlan.processNotes ?? ''}
                 onChange={(e) => actions.updateProcessNotes(e.target.value)}
                 placeholder="随时记录想法、发现、卡点…"
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: 13, flex: 1 }}
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1 }}
               />
             </div>
           ) : null}

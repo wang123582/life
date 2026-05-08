@@ -1453,11 +1453,11 @@ button:disabled {
   bottom: 0;
   right: 0;
   width: 100vw;
-  height: 60vh;
+  height: 70vh;
   border-radius: 12px 12px 0 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 16px;
+  padding: 8px 12px;
 }
 
 .process-notes-panel {
