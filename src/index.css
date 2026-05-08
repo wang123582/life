@@ -250,9 +250,15 @@ button {
   }
 
   .today-page-grid > .column-side {
+    position: relative;
+  }
+
+  .column-side-sticky {
     position: sticky;
     top: 20px;
-    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .summary-grid {
@@ -2045,10 +2051,6 @@ button:disabled {
 
 .column-side {
   align-self: stretch;
-}
-
-.today-page-grid > .column-side {
-  align-self: start;
 }
 
 .summary-grid .summary-card {

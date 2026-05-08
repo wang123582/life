@@ -1554,7 +1554,7 @@ function App() {
             ) : null}
 
             <div className={isMobileLayout && !showMobileTodayExtras ? 'column-side mobile-hidden' : 'column-side'}>
-              <Section kicker="Now" title="现在先做" subtitle="右边只留下当前最需要看的几件事。">
+              <div className="column-side-sticky"></div>              <Section kicker="Now" title="现在先做" subtitle="右边只留下当前最需要看的几件事。">
                 <div className="compact-stack">
                   <div className="side-summary-card">
                     <span className="muted-label">最小下一步</span>
@@ -1727,6 +1727,7 @@ function App() {
                   </label>
                 </div>
               </Section>
+              </div>
             </div>
           </div>
         ) : null}
