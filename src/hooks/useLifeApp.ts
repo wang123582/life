@@ -968,6 +968,38 @@ export function useLifeApp() {
     setData(defaultData())
   }
 
+  const removeDifficultyRecord = (id: string) => {
+    setData((prev) => stampData({
+      ...prev,
+      difficultyRecords: prev.difficultyRecords.filter((r) => r.id !== id),
+    }))
+  }
+
+  const updateDifficultyRecord = (id: string, updates: { note?: string; nextAction?: string }) => {
+    setData((prev) => stampData({
+      ...prev,
+      difficultyRecords: prev.difficultyRecords.map((r) =>
+        r.id === id ? { ...r, ...updates } : r,
+      ),
+    }))
+  }
+
+  const removeFocusSession = (id: string) => {
+    setData((prev) => stampData({
+      ...prev,
+      focusSessions: prev.focusSessions.filter((s) => s.id !== id),
+    }))
+  }
+
+  const updateFocusSession = (id: string, updates: { accomplishment?: string }) => {
+    setData((prev) => stampData({
+      ...prev,
+      focusSessions: prev.focusSessions.map((s) =>
+        s.id === id ? { ...s, ...updates } : s,
+      ),
+    }))
+  }
+
   useEffect(() => {
     if (!syncReady) {
       return
@@ -1056,6 +1088,10 @@ export function useLifeApp() {
       finishTimer,
       consumeRelaxWindow,
       saveReview,
+      removeDifficultyRecord,
+      updateDifficultyRecord,
+      removeFocusSession,
+      updateFocusSession,
       resetAll,
     },
   }

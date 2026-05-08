@@ -2237,7 +2237,7 @@ function App() {
             </div>
 
             <div className="column-side">
-              <Section title="和时钟关联" subtitle="今天做了什么、什么时候做完、哪里卡住，按时间直接回看。">
+              <Section title="和时钟关联" subtitle="今天做了什么、什么时候做完、哪里卡住。可以直接编辑或删除条目，修改后发送飞书即为最新内容。">
                 <ul className="timeline-list">
                   {todayTimeline.length === 0 ? <li className="timeline-empty">今天还没有形成时间线。</li> : null}
                   {todayTimeline.map((entry) => (
@@ -2247,6 +2247,16 @@ function App() {
                         <strong>{entry.title}</strong>
                         <p>{entry.detail}</p>
                       </div>
+                      <button
+                        type="button"
+                        className="tiny-button"
+                        onClick={() => {
+                          if (entry.type === 'difficulty') actions.removeDifficultyRecord(entry.id)
+                          else if (entry.type === 'focus') actions.removeFocusSession(entry.id)
+                        }}
+                      >
+                        ×
+                      </button>
                     </li>
                   ))}
                 </ul>
