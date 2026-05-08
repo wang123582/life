@@ -2418,7 +2418,7 @@ function App() {
                     <label>
                       卡点说明
                       <textarea
-                        rows={3}
+                        rows={8}
                         defaultValue={difficulty.note}
                         onBlur={(e) => actions.updateDifficultyRecord(entry.id, { note: e.target.value })}
                       />
@@ -2426,7 +2426,7 @@ function App() {
                     <label>
                       下一步
                       <textarea
-                        rows={3}
+                        rows={6}
                         defaultValue={difficulty.nextAction}
                         onBlur={(e) => actions.updateDifficultyRecord(entry.id, { nextAction: e.target.value })}
                       />
@@ -2437,7 +2437,7 @@ function App() {
                   <label>
                     这轮完成了什么
                     <textarea
-                      rows={3}
+                      rows={8}
                       defaultValue={session.accomplishment ?? ''}
                       onBlur={(e) => actions.updateFocusSession(entry.id, { accomplishment: e.target.value })}
                     />
