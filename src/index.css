@@ -1435,8 +1435,9 @@ button:disabled {
 
 .floating-timer {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 16px;
   width: min(340px, calc(100vw - 32px));
   border-radius: 12px;
   padding: 16px;
@@ -1451,7 +1452,8 @@ button:disabled {
 
 .floating-timer:has(.process-notes-panel) {
   bottom: 0;
-  right: 0;
+  left: 0;
+  transform: none;
   width: 100vw;
   height: 70vh;
   border-radius: 12px 12px 0 0;
