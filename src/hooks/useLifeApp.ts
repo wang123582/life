@@ -852,6 +852,7 @@ export function useLifeApp() {
         endedAt: new Date().toISOString(),
         plannedMinutes: activeTimer.durationMinutes,
         status: payload.completed ? 'completed' : 'cancelled',
+        accomplishment: payload.accomplishment?.trim() || undefined,
       }
 
       const plan = clonePlan(next.dayPlans[dayKey])

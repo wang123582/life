@@ -117,6 +117,7 @@ function App() {
   const [markStepDone, setMarkStepDone] = useState(true)
   const [difficultyType, setDifficultyType] = useState<DifficultyType>('too_big')
   const [difficultyNote, setDifficultyNote] = useState('')
+  const [accomplishment, setAccomplishment] = useState('')
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
@@ -665,11 +666,13 @@ function App() {
       difficultyType: timerCompleted ? undefined : difficultyType,
       difficultyNote,
       nextAction,
+      accomplishment,
     })
     setFinishOpen(false)
     setTimerCompleted(true)
     setDifficultyNote('')
     setNextAction('')
+    setAccomplishment('')
     setMarkStepDone(true)
 
     window.requestAnimationFrame(() => {
@@ -2349,6 +2352,12 @@ function App() {
                       </option>
                     ))}
                   </select>
+                </label>
+              ) : null}
+              {timerCompleted ? (
+                <label>
+                  这轮完成了什么
+                  <textarea rows={3} value={accomplishment} onChange={(event) => setAccomplishment(event.target.value)} placeholder="例如：完成了登录页面的表单验证" />
                 </label>
               ) : null}
               <label>

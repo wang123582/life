@@ -96,6 +96,7 @@ export interface FocusSession {
   endedAt: string
   plannedMinutes: number
   status: 'completed' | 'cancelled'
+  accomplishment?: string
 }
 
 export interface RelaxWindow {
@@ -171,6 +172,7 @@ export interface FinishTimerPayload {
   difficultyType?: DifficultyType
   difficultyNote?: string
   nextAction?: string
+  accomplishment?: string
 }
 
 export interface ReviewInput {

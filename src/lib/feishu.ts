@@ -81,7 +81,7 @@ function buildParagraphs(payload: FeishuReportPayload): FeishuTextLine[] {
     : ['- 今天还没有记录困难。']
 
   const focusLines = payload.focusSessions.length > 0
-    ? payload.focusSessions.slice(0, 8).map((session) => `- ${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.status === 'completed' ? '完成' : '中断'}｜${session.plannedMinutes} 分钟`)
+    ? payload.focusSessions.slice(0, 8).map((session) => `- ${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.status === 'completed' ? '完成' : '中断'}｜${session.plannedMinutes} 分钟${session.accomplishment ? `｜${session.accomplishment}` : ''}`)
     : ['- 今天还没有番茄记录。']
 
   const review = payload.review
@@ -187,7 +187,7 @@ export function buildTodayTimeline(entries: {
     id: session.id,
     type: 'focus',
     title: `${session.status === 'completed' ? '完成一轮专注' : '专注被中断'}`,
-    detail: `${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.plannedMinutes} 分钟`,
+    detail: `${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.plannedMinutes} 分钟${session.accomplishment ? `｜${session.accomplishment}` : ''}`,
     happenedAt: session.endedAt,
   }))
 
@@ -243,7 +243,7 @@ export function buildReportPreviewText(payload: FeishuReportPayload): string {
   lines.push('【专注记录】')
   if (payload.focusSessions.length > 0) {
     payload.focusSessions.slice(0, 8).forEach((session) => {
-      lines.push(`- ${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.status === 'completed' ? '完成' : '中断'}｜${session.plannedMinutes} 分钟`)
+      lines.push(`- ${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.status === 'completed' ? '完成' : '中断'}｜${session.plannedMinutes} 分钟${session.accomplishment ? `｜${session.accomplishment}` : ''}`)
     })
   } else {
     lines.push('- 今天还没有番茄记录。')
