@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import { playAlarmSound, playReminderSound } from './lib/alarm'
 import { difficultyTemplateLabels, encouragementMessages, presetInterventions, stateTemplateLabels } from './lib/defaults'
@@ -120,6 +120,22 @@ function App() {
   const [accomplishment, setAccomplishment] = useState('')
   const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
   const [showProcessNotes, setShowProcessNotes] = useState(false)
+  const notesRef = useRef<HTMLTextAreaElement>(null)
+
+  const insertNotesMarkdown = useCallback((prefix: string, suffix: string, placeholder: string) => {
+    const ta = notesRef.current
+    if (!ta) return
+    const { selectionStart: s, selectionEnd: e, value } = ta
+    const selected = value.slice(s, e)
+    const insert = selected || placeholder
+    const newVal = value.slice(0, s) + prefix + insert + suffix + value.slice(e)
+    actions.updateProcessNotes(newVal)
+    requestAnimationFrame(() => {
+      ta.focus()
+      const cur = s + prefix.length
+      ta.setSelectionRange(cur, cur + insert.length)
+    })
+  }, [actions])
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
@@ -2353,7 +2369,14 @@ function App() {
           )}
           {showProcessNotes ? (
             <div className="process-notes-panel">
+              <div className="notes-toolbar">
+                <button type="button" onClick={() => insertNotesMarkdown('\n```\n', '\n```\n', 'code here')}>{'</>'} 代码块</button>
+                <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>{'`'} 行内代码</button>
+                <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
+                <button type="button" onClick={() => insertNotesMarkdown('- ', '\n', '列表项')}>• 列表</button>
+              </div>
               <textarea
+                ref={notesRef}
                 value={dayPlan.processNotes ?? ''}
                 onChange={(e) => actions.updateProcessNotes(e.target.value)}
                 placeholder="随时记录想法、发现、卡点…"

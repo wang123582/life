@@ -1470,6 +1470,27 @@ button:disabled {
   resize: none;
 }
 
+.notes-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.notes-toolbar button {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: inherit;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notes-toolbar button:active {
+  background: rgba(255,255,255,0.2);
+}
+
 .floating-actions {
   margin-top: 14px;
   justify-content: flex-end;
