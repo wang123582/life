@@ -2343,11 +2343,10 @@ function App() {
           {showProcessNotes ? (
             <div className="process-notes-panel">
               <textarea
-                rows={6}
                 value={dayPlan.processNotes ?? ''}
                 onChange={(e) => actions.updateProcessNotes(e.target.value)}
                 placeholder="随时记录想法、发现、卡点…"
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: 13, flex: 1 }}
               />
             </div>
           ) : null}

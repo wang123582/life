@@ -1449,6 +1449,22 @@ button:disabled {
   margin: 6px 0;
 }
 
+.floating-timer:has(.process-notes-panel) {
+  bottom: 0;
+  right: 0;
+  width: 100vw;
+  height: 50vh;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.process-notes-panel {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
 .floating-actions {
   margin-top: 14px;
   justify-content: flex-end;
