@@ -2377,6 +2377,17 @@ function App() {
                 style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1 }}
               />
               <div className="notes-toolbar">
+                <button type="button" onClick={() => {
+                  const now = dayjs().format('HH:mm')
+                  const cur = dayPlan.processNotes ?? ''
+                  const sep = cur.trim() ? `\n\n--- ${now} ---\n` : `--- ${now} ---\n`
+                  actions.updateProcessNotes(cur + sep)
+                  requestAnimationFrame(() => {
+                    const ta = notesRef.current
+                    if (ta) { ta.scrollTop = ta.scrollHeight; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length) }
+                  })
+                }}>+ 新笔记</button>
+                <span style={{ flex: 1 }} />
                 <button type="button" onClick={() => insertNotesMarkdown('\n```\n', '\n```\n', 'code')}>{'</>'}</button>
                 <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>` `</button>
                 <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
