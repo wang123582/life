@@ -2387,7 +2387,6 @@ function App() {
                     if (ta) { ta.scrollTop = ta.scrollHeight; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length) }
                   })
                 }}>+ 新笔记</button>
-                <span style={{ flex: 1 }} />
                 <button type="button" onClick={() => insertNotesMarkdown('\n```\n', '\n```\n', 'code')}>{'</>'}</button>
                 <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>` `</button>
                 <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
