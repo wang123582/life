@@ -119,6 +119,7 @@ function App() {
   const [difficultyNote, setDifficultyNote] = useState('')
   const [accomplishment, setAccomplishment] = useState('')
   const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
+  const [expandedTimelineIds, setExpandedTimelineIds] = useState<Set<string>>(new Set())
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
@@ -2252,7 +2253,22 @@ function App() {
                         style={{ cursor: entry.type !== 'step' ? 'pointer' : undefined }}
                       >
                         <strong>{entry.title}</strong>
-                        <p>{entry.detail}</p>
+                        <p
+                          className={expandedTimelineIds.has(entry.id) ? '' : 'timeline-detail-truncated'}
+                          onClick={(e) => {
+                            if (entry.detail.length > 40) {
+                              e.stopPropagation()
+                              setExpandedTimelineIds((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(entry.id)) next.delete(entry.id)
+                                else next.add(entry.id)
+                                return next
+                              })
+                            }
+                          }}
+                        >
+                          {entry.detail}
+                        </p>
                       </div>
                       {entry.type !== 'step' ? (
                         <button
