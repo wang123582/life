@@ -249,14 +249,10 @@ button {
     grid-template-columns: minmax(0, 1.38fr) minmax(340px, 0.82fr);
   }
 
-  .today-page-grid > .column-side,
-  .today-page-grid > .column-main {
+  .today-page-grid > .column-side {
     position: sticky;
     top: 20px;
-  }
-
-  .today-page-grid {
-    align-items: start;
+    align-self: start;
   }
 
   .summary-grid {
@@ -2043,9 +2039,16 @@ button:disabled {
   align-items: start;
 }
 
-.column-main,
+.column-main {
+  align-self: stretch;
+}
+
 .column-side {
   align-self: stretch;
+}
+
+.today-page-grid > .column-side {
+  align-self: start;
 }
 
 .summary-grid .summary-card {
