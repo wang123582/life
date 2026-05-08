@@ -1435,9 +1435,8 @@ button:disabled {
 
 .floating-timer {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 16px;
+  right: 24px;
+  bottom: 24px;
   width: min(340px, calc(100vw - 32px));
   border-radius: 12px;
   padding: 16px;
@@ -1452,8 +1451,7 @@ button:disabled {
 
 .floating-timer:has(.process-notes-panel) {
   bottom: 0;
-  left: 0;
-  transform: none;
+  right: 0;
   width: 100vw;
   height: 70vh;
   border-radius: 12px 12px 0 0;
@@ -1478,6 +1476,7 @@ button:disabled {
   padding: 4px 0 0;
   flex-shrink: 0;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .notes-toolbar button {
