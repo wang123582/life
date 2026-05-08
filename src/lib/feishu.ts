@@ -253,11 +253,40 @@ export function buildReportPreviewText(payload: FeishuReportPayload): string {
 }
 
 export async function sendFeishuPlainText(payload: FeishuConnectionPayload, text: string): Promise<void> {
-  const prefix = (payload as { keyword?: string }).keyword?.trim()
-    ? `${(payload as { keyword?: string }).keyword!.trim()}\n`
-    : ''
+  const keyword = (payload as { keyword?: string }).keyword?.trim() ?? ''
+
+  // Build card body with markdown sections
+  const sections = text.split('\n\n').filter(Boolean)
+  const elements: Record<string, unknown>[] = []
+
+  for (const section of sections) {
+    if (section.startsWith('【') && section.includes('】')) {
+      // Section header → divider + bold heading
+      elements.push({ tag: 'hr' })
+      elements.push({
+        tag: 'markdown',
+        content: `**${section}**`,
+      })
+    } else {
+      elements.push({
+        tag: 'markdown',
+        content: section,
+      })
+    }
+  }
+
+  const title = keyword
+    ? `${keyword} · ${sections[0] || 'life 日报'}`
+    : (sections[0] || 'life 日报')
+
   await postToFeishu(payload, {
-    msg_type: 'text',
-    content: { text: `${prefix}${text}` },
+    msg_type: 'interactive',
+    card: {
+      header: {
+        title: { tag: 'plain_text', content: title },
+        template: 'blue',
+      },
+      elements,
+    },
   })
 }
