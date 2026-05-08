@@ -249,7 +249,7 @@ button {
     grid-template-columns: minmax(0, 1.38fr) minmax(340px, 0.82fr);
   }
 
-  .page-grid > .column-side {
+  .today-page-grid > .column-side {
     position: sticky;
     top: 20px;
     align-self: start;
