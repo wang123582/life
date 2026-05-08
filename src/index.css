@@ -2001,8 +2001,7 @@ button:disabled {
 
 .timeline-detail-truncated {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  cursor: pointer;
 }
