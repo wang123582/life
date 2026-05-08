@@ -249,12 +249,14 @@ button {
     grid-template-columns: minmax(0, 1.38fr) minmax(340px, 0.82fr);
   }
 
-  .today-page-grid > .column-side {
+  .today-page-grid > .column-side,
+  .today-page-grid > .column-main {
     position: sticky;
     top: 20px;
-    align-self: start;
-    max-height: calc(100vh - 40px);
-    overflow-y: auto;
+  }
+
+  .today-page-grid {
+    align-items: start;
   }
 
   .summary-grid {
@@ -1449,6 +1451,22 @@ button:disabled {
   border-radius: 12px;
   padding: 16px;
   z-index: 30;
+}
+
+.floating-timer-mini {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(17, 24, 44, 0.95);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
 }
 
 .floating-timer strong {

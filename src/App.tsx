@@ -118,6 +118,7 @@ function App() {
   const [difficultyType, setDifficultyType] = useState<DifficultyType>('too_big')
   const [difficultyNote, setDifficultyNote] = useState('')
   const [accomplishment, setAccomplishment] = useState('')
+  const [timerCollapsed, setTimerCollapsed] = useState(false)
   const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
   const [showProcessNotes, setShowProcessNotes] = useState(false)
   const notesRef = useRef<HTMLTextAreaElement>(null)
@@ -2336,6 +2337,11 @@ function App() {
       </main>
 
       {activeTimer ? (
+        timerCollapsed ? (
+          <button type="button" className="floating-timer-mini" onClick={() => setTimerCollapsed(false)}>
+            ⏱ {formatSeconds(remainingSeconds)}
+          </button>
+        ) : (
         <div className={`floating-timer${showProcessNotes ? ' notes-open' : ''}`}>
           {showProcessNotes ? (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2344,11 +2350,14 @@ function App() {
             </div>
           ) : (
             <>
-              <div>
-                <span className="muted-label">{isBreakTimer ? '正在休息' : '正在专注'}</span>
-                <strong>{formatSeconds(remainingSeconds)}</strong>
-                <p>{isBreakTimer ? `刚完成：${activeItem?.title ?? '这一轮专注'}` : activeItem?.title ?? '未绑定任务'}</p>
-                <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <span className="muted-label">{isBreakTimer ? '正在休息' : '正在专注'}</span>
+                  <strong>{formatSeconds(remainingSeconds)}</strong>
+                  <p>{isBreakTimer ? `刚完成：${activeItem?.title ?? '这一轮专注'}` : activeItem?.title ?? '未绑定任务'}</p>
+                  <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
+                </div>
+                <button type="button" className="ghost-button" onClick={() => setTimerCollapsed(true)} style={{ fontSize: 18, padding: '2px 8px' }}>−</button>
               </div>
             </>
           )}
@@ -2399,6 +2408,7 @@ function App() {
             </div>
           ) : null}
         </div>
+        )
       ) : null}
 
       {finishOpen && activeTimer?.mode === 'focus' ? (
