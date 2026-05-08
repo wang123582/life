@@ -119,6 +119,7 @@ function App() {
   const [difficultyNote, setDifficultyNote] = useState('')
   const [accomplishment, setAccomplishment] = useState('')
   const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
+  const [showProcessNotes, setShowProcessNotes] = useState(false)
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
@@ -746,6 +747,7 @@ function App() {
         commonStateLabel: getStateLabel(savedReview.commonState ?? ''),
         communicationDone: dayPlan.communicationDone,
         communicationNote,
+        processNotes: dayPlan.processNotes,
       })
       await sendFeishuPlainText(
         { webhookUrl: feishuWebhookUrl.trim(), keyword: feishuKeyword.trim(), secret: feishuSecret.trim() },
@@ -960,6 +962,7 @@ function App() {
         commonStateLabel: getStateLabel(reviewPayload?.commonState ?? ''),
         communicationDone: dayPlan.communicationDone,
         communicationNote,
+        processNotes: dayPlan.processNotes,
       })
 
       actions.updateSettings({
@@ -2321,6 +2324,9 @@ function App() {
             <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
           </div>
           <div className="floating-actions">
+            <button type="button" className="ghost-button" onClick={() => setShowProcessNotes(!showProcessNotes)}>
+              {showProcessNotes ? '收起笔记' : '📝 过程笔记'}
+            </button>
             {isBreakTimer ? (
               <button type="button" className="ghost-button" onClick={actions.finishBreakTimer}>
                 提前结束休息
@@ -2334,6 +2340,17 @@ function App() {
               {isBreakTimer ? '取消休息' : '取消本轮'}
             </button>
           </div>
+          {showProcessNotes ? (
+            <div className="process-notes-panel">
+              <textarea
+                rows={6}
+                value={dayPlan.processNotes ?? ''}
+                onChange={(e) => actions.updateProcessNotes(e.target.value)}
+                placeholder="随时记录想法、发现、卡点…"
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

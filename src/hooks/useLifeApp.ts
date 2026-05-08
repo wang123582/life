@@ -964,6 +964,13 @@ export function useLifeApp() {
     }))
   }
 
+  const updateProcessNotes = (notes: string) => {
+    updateDayPlan((plan) => ({
+      ...plan,
+      processNotes: notes,
+    }))
+  }
+
   const resetAll = () => {
     setData(defaultData())
   }
@@ -1088,6 +1095,7 @@ export function useLifeApp() {
       finishTimer,
       consumeRelaxWindow,
       saveReview,
+      updateProcessNotes,
       removeDifficultyRecord,
       updateDifficultyRecord,
       removeFocusSession,

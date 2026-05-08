@@ -28,6 +28,7 @@ interface FeishuReportPayload {
   commonStateLabel?: string
   communicationDone: boolean
   communicationNote: string
+  processNotes?: string
 }
 
 interface FeishuConnectionPayload {
@@ -247,6 +248,12 @@ export function buildReportPreviewText(payload: FeishuReportPayload): string {
     })
   } else {
     lines.push('- 今天还没有番茄记录。')
+  }
+
+  if (payload.processNotes?.trim()) {
+    lines.push('')
+    lines.push('【过程笔记】')
+    lines.push(payload.processNotes.trim())
   }
 
   return lines.join('\n')

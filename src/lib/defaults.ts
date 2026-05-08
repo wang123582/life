@@ -150,6 +150,7 @@ export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefin
     avoidItems: [],
     communicationDone: false,
     communicationNote: '',
+    processNotes: '',
     review: null,
   }
 }

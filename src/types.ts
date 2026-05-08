@@ -63,6 +63,7 @@ export interface DayPlan {
   avoidItems: AvoidItem[]
   communicationDone: boolean
   communicationNote: string
+  processNotes: string
   review: DailyReview | null
 }
 
