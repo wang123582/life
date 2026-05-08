@@ -118,6 +118,8 @@ function App() {
   const [difficultyType, setDifficultyType] = useState<DifficultyType>('too_big')
   const [difficultyNote, setDifficultyNote] = useState('')
   const [accomplishment, setAccomplishment] = useState('')
+  const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
+  const [editingTimelineText, setEditingTimelineText] = useState('')
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
@@ -2245,18 +2247,52 @@ function App() {
                       <span className="timeline-time">{dayjs(entry.happenedAt).format('HH:mm')}</span>
                       <div>
                         <strong>{entry.title}</strong>
-                        <p>{entry.detail}</p>
+                        {editingTimelineId === entry.id ? (
+                          <textarea
+                            rows={2}
+                            value={editingTimelineText}
+                            onChange={(e) => setEditingTimelineText(e.target.value)}
+                            onBlur={() => {
+                              if (entry.type === 'difficulty') {
+                                const parts = editingTimelineText.split('｜下一步：')
+                                actions.updateDifficultyRecord(entry.id, {
+                                  note: parts[0] || '',
+                                  nextAction: parts[1] || '',
+                                })
+                              } else if (entry.type === 'focus') {
+                                actions.updateFocusSession(entry.id, { accomplishment: editingTimelineText })
+                              }
+                              setEditingTimelineId(null)
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <p
+                            onClick={() => {
+                              if (entry.type === 'step') return
+                              setEditingTimelineId(entry.id)
+                              setEditingTimelineText(entry.type === 'focus'
+                                ? (todayFocusSessions.find((s) => s.id === entry.id)?.accomplishment ?? '')
+                                : entry.detail)
+                            }}
+                            style={{ cursor: entry.type !== 'step' ? 'pointer' : undefined }}
+                          >
+                            {entry.detail}
+                          </p>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        className="tiny-button"
-                        onClick={() => {
-                          if (entry.type === 'difficulty') actions.removeDifficultyRecord(entry.id)
-                          else if (entry.type === 'focus') actions.removeFocusSession(entry.id)
-                        }}
-                      >
-                        ×
-                      </button>
+                      {entry.type !== 'step' ? (
+                        <button
+                          type="button"
+                          className="tiny-button"
+                          onClick={() => {
+                            if (entry.type === 'difficulty') actions.removeDifficultyRecord(entry.id)
+                            else if (entry.type === 'focus') actions.removeFocusSession(entry.id)
+                          }}
+                        >
+                          ×
+                        </button>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
