@@ -1633,7 +1633,6 @@ function App() {
                               onClick={() => {
                                 setActiveIntervention(method.id)
                                 setStateResponse(method.label)
-                                setInterventionStep('rate')
                               }}
                             >
                               <strong>{method.label}</strong>
@@ -1660,6 +1659,11 @@ function App() {
                           去试
                         </button>
                       </div>
+                      {activeIntervention && activeIntervention !== 'custom' ? (
+                        <button type="button" className="primary-button" onClick={() => setInterventionStep('rate')}>
+                          去做：{stateResponse}
+                        </button>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="stack-form">

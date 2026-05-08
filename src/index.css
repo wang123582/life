@@ -249,6 +249,14 @@ button {
     grid-template-columns: minmax(0, 1.38fr) minmax(340px, 0.82fr);
   }
 
+  .page-grid > .column-side {
+    position: sticky;
+    top: 20px;
+    align-self: start;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+
   .summary-grid {
     gap: 14px;
   }
