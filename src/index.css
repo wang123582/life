@@ -1453,16 +1453,21 @@ button:disabled {
   bottom: 0;
   right: 0;
   width: 100vw;
-  height: 50vh;
+  height: 60vh;
   border-radius: 12px 12px 0 0;
   display: flex;
   flex-direction: column;
+  padding: 10px 16px;
 }
 
 .process-notes-panel {
   flex: 1;
   display: flex;
   min-height: 0;
+}
+
+.process-notes-panel textarea {
+  resize: none;
 }
 
 .floating-actions {
