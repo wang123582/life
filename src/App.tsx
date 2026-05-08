@@ -119,7 +119,6 @@ function App() {
   const [difficultyNote, setDifficultyNote] = useState('')
   const [accomplishment, setAccomplishment] = useState('')
   const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
-  const [editingTimelineText, setEditingTimelineText] = useState('')
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
@@ -2245,47 +2244,22 @@ function App() {
                   {todayTimeline.map((entry) => (
                     <li key={entry.id} className={`timeline-item ${entry.type}`}>
                       <span className="timeline-time">{dayjs(entry.happenedAt).format('HH:mm')}</span>
-                      <div>
+                      <div
+                        onClick={() => {
+                          if (entry.type === 'step') return
+                          setEditingTimelineId(entry.id)
+                        }}
+                        style={{ cursor: entry.type !== 'step' ? 'pointer' : undefined }}
+                      >
                         <strong>{entry.title}</strong>
-                        {editingTimelineId === entry.id ? (
-                          <textarea
-                            rows={2}
-                            value={editingTimelineText}
-                            onChange={(e) => setEditingTimelineText(e.target.value)}
-                            onBlur={() => {
-                              if (entry.type === 'difficulty') {
-                                const parts = editingTimelineText.split('｜下一步：')
-                                actions.updateDifficultyRecord(entry.id, {
-                                  note: parts[0] || '',
-                                  nextAction: parts[1] || '',
-                                })
-                              } else if (entry.type === 'focus') {
-                                actions.updateFocusSession(entry.id, { accomplishment: editingTimelineText })
-                              }
-                              setEditingTimelineId(null)
-                            }}
-                            autoFocus
-                          />
-                        ) : (
-                          <p
-                            onClick={() => {
-                              if (entry.type === 'step') return
-                              setEditingTimelineId(entry.id)
-                              setEditingTimelineText(entry.type === 'focus'
-                                ? (todayFocusSessions.find((s) => s.id === entry.id)?.accomplishment ?? '')
-                                : entry.detail)
-                            }}
-                            style={{ cursor: entry.type !== 'step' ? 'pointer' : undefined }}
-                          >
-                            {entry.detail}
-                          </p>
-                        )}
+                        <p>{entry.detail}</p>
                       </div>
                       {entry.type !== 'step' ? (
                         <button
                           type="button"
                           className="tiny-button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             if (entry.type === 'difficulty') actions.removeDifficultyRecord(entry.id)
                             else if (entry.type === 'focus') actions.removeFocusSession(entry.id)
                           }}
@@ -2420,6 +2394,61 @@ function App() {
           </div>
         </div>
       ) : null}
+
+      {editingTimelineId ? (() => {
+        const entry = todayTimeline.find((e) => e.id === editingTimelineId)
+        if (!entry) return null
+        const difficulty = entry.type === 'difficulty' ? todayDifficultyRecords.find((r) => r.id === entry.id) : null
+        const session = entry.type === 'focus' ? todayFocusSessions.find((s) => s.id === entry.id) : null
+        return (
+          <div className="modal-backdrop">
+            <div className="modal">
+              <div className="panel-header">
+                <div>
+                  <h2>编辑记录</h2>
+                  <p>{entry.title}　{dayjs(entry.happenedAt).format('HH:mm')}</p>
+                </div>
+                <button type="button" className="tiny-button" onClick={() => setEditingTimelineId(null)}>关闭</button>
+              </div>
+              <div className="stack-form">
+                {difficulty ? (
+                  <>
+                    <label>
+                      卡点说明
+                      <textarea
+                        rows={3}
+                        defaultValue={difficulty.note}
+                        onBlur={(e) => actions.updateDifficultyRecord(entry.id, { note: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      下一步
+                      <textarea
+                        rows={3}
+                        defaultValue={difficulty.nextAction}
+                        onBlur={(e) => actions.updateDifficultyRecord(entry.id, { nextAction: e.target.value })}
+                      />
+                    </label>
+                  </>
+                ) : null}
+                {session ? (
+                  <label>
+                    这轮完成了什么
+                    <textarea
+                      rows={3}
+                      defaultValue={session.accomplishment ?? ''}
+                      onBlur={(e) => actions.updateFocusSession(entry.id, { accomplishment: e.target.value })}
+                    />
+                  </label>
+                ) : null}
+                <button type="button" className="primary-button" onClick={() => setEditingTimelineId(null)}>
+                  保存并关闭
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })() : null}
     </div>
   )
 }
