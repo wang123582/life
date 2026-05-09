@@ -257,7 +257,7 @@ button {
     gap: 12px;
   }
 
-  .page-grid:not(.today-page-grid) > .column-side {
+  .page-grid > .column-side {
     position: sticky;
     top: 20px;
   }
