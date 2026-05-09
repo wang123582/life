@@ -249,15 +249,17 @@ button {
     grid-template-columns: minmax(0, 1.38fr) minmax(340px, 0.82fr);
   }
 
-  .page-grid > .column-side {
-    position: relative;
+  .column-side-sticky {
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
-  .column-side-sticky,
   .page-grid:not(.today-page-grid) > .column-side {
     position: sticky;
     top: 20px;
-    align-self: start;
   }
 
   .summary-grid {
@@ -2048,9 +2050,7 @@ button:disabled {
   align-self: stretch;
 }
 
-.column-side {
-  align-self: stretch;
-}
+
 
 .summary-grid .summary-card {
   display: flex;
