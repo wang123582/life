@@ -257,7 +257,8 @@ button {
     gap: 12px;
   }
 
-  .page-grid > .column-side {
+  .page-grid > .column-side,
+  .page-grid > .column-main {
     position: sticky;
     top: 20px;
   }
@@ -2046,9 +2047,7 @@ button:disabled {
   align-items: start;
 }
 
-.column-main {
-  align-self: stretch;
-}
+/* align-items: start on .page-grid lets shorter column be sticky */
 
 
 
