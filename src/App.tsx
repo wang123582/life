@@ -121,6 +121,7 @@ function App() {
   const [timerCollapsed, setTimerCollapsed] = useState(false)
   const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
   const [showProcessNotes, setShowProcessNotes] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const notesRef = useRef<HTMLTextAreaElement>(null)
 
   const insertNotesMarkdown = useCallback((prefix: string, suffix: string, placeholder: string) => {
@@ -2260,6 +2261,60 @@ function App() {
                     <p className={reviewSaveStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{reviewSaveMessage}</p>
                   ) : null}
                 </form>
+              </Section>
+
+              <Section title="近 30 天记录">
+                <button type="button" className="secondary-button" onClick={() => setShowHistory((v) => !v)}>
+                  {showHistory ? '收起历史' : '查看近 30 天写了什么'}
+                </button>
+                {showHistory ? (
+                  <div className="history-panel">
+                    {Object.entries(data.dayPlans)
+                      .filter(([key]) => key !== dayKey)
+                      .sort(([a], [b]) => (a > b ? -1 : 1))
+                      .map(([key, plan]) => {
+                        const dayDifficulties = data.difficultyRecords.filter((r) => r.dayKey === key)
+                        const daySessions = data.focusSessions.filter((s) => s.dayKey === key)
+                        return (
+                          <details key={key} className="history-day">
+                            <summary>
+                              <strong>{key}</strong>
+                              <span className="muted"> — {plan.todayItems.filter((i) => i.isDone).length}/{plan.todayItems.length} 项完成</span>
+                            </summary>
+                            {plan.review ? (
+                              <div className="history-review">
+                                {plan.review.wins ? <p><strong>完成：</strong>{plan.review.wins}</p> : null}
+                                {plan.review.slips ? <p><strong>失守：</strong>{plan.review.slips}</p> : null}
+                                {plan.review.tomorrow ? <p><strong>明天第一步：</strong>{plan.review.tomorrow}</p> : null}
+                              </div>
+                            ) : null}
+                            {daySessions.length > 0 ? (
+                              <div className="history-sessions">
+                                <p className="muted">专注 {daySessions.length} 轮</p>
+                                {daySessions.filter((s) => s.accomplishment).map((s) => (
+                                  <p key={s.id}>✓ {s.accomplishment}</p>
+                                ))}
+                              </div>
+                            ) : null}
+                            {dayDifficulties.length > 0 ? (
+                              <div className="history-difficulties">
+                                <p className="muted">困难 {dayDifficulties.length} 条</p>
+                                {dayDifficulties.map((d) => (
+                                  <p key={d.id}>· {d.note || d.type}{d.nextAction ? ` → ${d.nextAction}` : ''}</p>
+                                ))}
+                              </div>
+                            ) : null}
+                            {plan.processNotes ? (
+                              <div className="history-notes">
+                                <p className="muted">过程笔记：</p>
+                                <pre>{plan.processNotes}</pre>
+                              </div>
+                            ) : null}
+                          </details>
+                        )
+                      })}
+                  </div>
+                ) : null}
               </Section>
             </div>
 

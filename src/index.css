@@ -2085,3 +2085,37 @@ button:disabled {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.history-panel {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-day {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.history-day summary {
+  cursor: pointer;
+  list-style: none;
+}
+.history-day summary::-webkit-details-marker { display: none; }
+.history-day[open] {
+  padding-bottom: 12px;
+}
+.history-review, .history-sessions, .history-difficulties, .history-notes {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.history-notes pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  background: var(--bg-dim, rgba(0,0,0,0.03));
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
