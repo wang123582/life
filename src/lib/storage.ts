@@ -1,4 +1,4 @@
-import { defaultData, ensureDayPlan, STORAGE_KEY } from './defaults'
+import { defaultData, ensureDayPlan, purgeOldData, STORAGE_KEY } from './defaults'
 import type { LifeAppData } from '../types'
 
 export function loadData(): LifeAppData {
@@ -12,7 +12,7 @@ export function loadData(): LifeAppData {
     const fallback = defaultData()
     const parsed = JSON.parse(raw) as Partial<LifeAppData>
 
-    return ensureDayPlan({
+    const merged = ensureDayPlan({
       ...fallback,
       ...parsed,
       taskDefs: parsed.taskDefs ?? fallback.taskDefs,
@@ -36,6 +36,7 @@ export function loadData(): LifeAppData {
       },
       activeTimer: parsed.activeTimer ?? fallback.activeTimer,
     })
+    return purgeOldData(merged)
   } catch {
     return defaultData()
   }

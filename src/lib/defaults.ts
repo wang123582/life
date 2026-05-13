@@ -217,3 +217,22 @@ export function ensureDayPlan(data: LifeAppData, dayKey = currentDayKey()): Life
     },
   }
 }
+
+/** Remove data older than 30 days */
+export function purgeOldData(data: LifeAppData): LifeAppData {
+  const cutoff = dayjs().subtract(30, 'day').format('YYYY-MM-DD')
+
+  const dayPlans: Record<string, DayPlan> = {}
+  for (const [key, plan] of Object.entries(data.dayPlans)) {
+    if (key >= cutoff) dayPlans[key] = plan
+  }
+
+  return {
+    ...data,
+    dayPlans,
+    difficultyRecords: data.difficultyRecords.filter((r) => r.dayKey >= cutoff),
+    stateRecords: data.stateRecords.filter((r) => r.dayKey >= cutoff),
+    focusSessions: data.focusSessions.filter((s) => s.dayKey >= cutoff),
+    relaxWindows: data.relaxWindows.filter((w) => w.dayKey >= cutoff),
+  }
+}
