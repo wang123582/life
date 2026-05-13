@@ -971,6 +971,13 @@ export function useLifeApp() {
     }))
   }
 
+  const updateProcessNotesColor = (color: string) => {
+    updateDayPlan((plan) => ({
+      ...plan,
+      processNotesColor: color,
+    }))
+  }
+
   const resetAll = () => {
     setData(defaultData())
   }
@@ -1096,6 +1103,7 @@ export function useLifeApp() {
       consumeRelaxWindow,
       saveReview,
       updateProcessNotes,
+      updateProcessNotesColor,
       removeDifficultyRecord,
       updateDifficultyRecord,
       removeFocusSession,

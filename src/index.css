@@ -2090,12 +2090,23 @@ button:disabled {
   margin-top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+}
+.history-toolbar {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.history-toolbar input,
+.history-toolbar select {
+  width: 100%;
 }
 .history-day {
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 10px 12px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.8));
 }
 .history-day summary {
   cursor: pointer;
@@ -2104,6 +2115,11 @@ button:disabled {
 .history-day summary::-webkit-details-marker { display: none; }
 .history-day[open] {
   padding-bottom: 12px;
+}
+.history-day-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
 }
 .history-review, .history-sessions, .history-difficulties, .history-notes {
   margin-top: 8px;
@@ -2118,4 +2134,12 @@ button:disabled {
   border-radius: 4px;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.notes-toolbar .color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  padding: 0;
 }

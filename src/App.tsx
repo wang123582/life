@@ -122,6 +122,11 @@ function App() {
   const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null)
   const [showProcessNotes, setShowProcessNotes] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [historyQuery, setHistoryQuery] = useState('')
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'review' | 'focus' | 'difficulty' | 'notes'>('all')
+  const [historySyncingDayKey, setHistorySyncingDayKey] = useState('')
+  const [historySyncMessage, setHistorySyncMessage] = useState('')
+  const [historySyncStatus, setHistorySyncStatus] = useState<'success' | 'error' | ''>('')
   const notesRef = useRef<HTMLTextAreaElement>(null)
 
   const insertNotesMarkdown = useCallback((prefix: string, suffix: string, placeholder: string) => {
@@ -574,6 +579,48 @@ function App() {
     () => buildTodayTimeline({ completedSteps, difficulties: todayDifficultyRecords, focusSessions: todayFocusSessions }).slice(0, 12),
     [completedSteps, todayDifficultyRecords, todayFocusSessions],
   )
+  const historyCutoffKey = useMemo(() => dayjs(dayKey).subtract(29, 'day').format('YYYY-MM-DD'), [dayKey])
+  const historyDays = useMemo(
+    () =>
+      Object.entries(data.dayPlans)
+        .filter(([key]) => key >= historyCutoffKey && key <= dayKey)
+        .sort(([a], [b]) => (a > b ? -1 : 1))
+        .map(([key, plan]) => ({
+          key,
+          plan,
+          dayDifficulties: data.difficultyRecords.filter((r) => r.dayKey === key),
+          daySessions: data.focusSessions.filter((s) => s.dayKey === key),
+        })),
+    [data.dayPlans, data.difficultyRecords, data.focusSessions, dayKey, historyCutoffKey],
+  )
+  const filteredHistoryDays = useMemo(() => {
+    const query = historyQuery.trim().toLowerCase()
+    return historyDays.filter(({ plan, dayDifficulties, daySessions }) => {
+      const matchesFilter =
+        historyFilter === 'all'
+        || (historyFilter === 'review' && Boolean(plan.review))
+        || (historyFilter === 'focus' && daySessions.length > 0)
+        || (historyFilter === 'difficulty' && dayDifficulties.length > 0)
+        || (historyFilter === 'notes' && Boolean(plan.processNotes?.trim()))
+
+      if (!matchesFilter) return false
+      if (!query) return true
+
+      const searchable = [
+        plan.review?.wins,
+        plan.review?.slips,
+        plan.review?.tomorrow,
+        plan.processNotes,
+        ...dayDifficulties.map((d) => `${d.note} ${d.nextAction}`),
+        ...daySessions.map((s) => s.accomplishment ?? ''),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      return searchable.includes(query)
+    })
+  }, [historyDays, historyFilter, historyQuery])
 
   const startTask = (item: TodayItem) => {
     const firstPendingStep = item.steps.find((step) => !step.isDone)
@@ -1001,6 +1048,65 @@ function App() {
       setFeishuSyncMessage(error instanceof Error ? error.message : '同步飞书失败。')
     } finally {
       setIsSyncingFeishu(false)
+    }
+  }
+
+  const handleSyncHistoryToFeishu = async (targetDayKey: string) => {
+    const webhookUrl = feishuWebhookUrl.trim()
+    if (!webhookUrl) {
+      setHistorySyncStatus('error')
+      setHistorySyncMessage('先在设置里填写飞书 webhook。')
+      return
+    }
+
+    const plan = data.dayPlans[targetDayKey]
+    if (!plan) return
+
+    const completedStepsForDay = plan.todayItems.flatMap((item) =>
+      item.steps
+        .filter((step) => step.isDone)
+        .map((step) => ({
+          taskTitle: item.title,
+          stepTitle: step.title,
+          completedAt: step.completedAt,
+        })),
+    )
+
+    const dayDifficulties = data.difficultyRecords.filter((r) => r.dayKey === targetDayKey)
+    const daySessions = data.focusSessions.filter((s) => s.dayKey === targetDayKey)
+
+    setHistorySyncingDayKey(targetDayKey)
+    setHistorySyncStatus('')
+    setHistorySyncMessage('')
+
+    try {
+      const text = buildReportPreviewText({
+        webhookUrl,
+        keyword: feishuKeyword.trim(),
+        secret: feishuSecret.trim(),
+        dayKey: targetDayKey,
+        review: plan.review,
+        completedSteps: completedStepsForDay,
+        difficulties: dayDifficulties,
+        focusSessions: daySessions,
+        commonStateLabel: getStateLabel(plan.review?.commonState ?? ''),
+        communicationDone: plan.communicationDone,
+        communicationNote: plan.communicationNote,
+        processNotes: plan.processNotes,
+      })
+
+      await sendFeishuPlainText(
+        { webhookUrl, keyword: feishuKeyword.trim(), secret: feishuSecret.trim() },
+        text,
+      )
+
+      setHistorySyncStatus('success')
+      setHistorySyncMessage(`${targetDayKey} 已补交到飞书。`)
+    } catch (error) {
+      setHistorySyncStatus('error')
+      setHistorySyncMessage(error instanceof Error ? error.message : '补交飞书失败。')
+    } finally {
+      setHistorySyncingDayKey('')
     }
   }
 
@@ -2269,18 +2375,42 @@ function App() {
                 </button>
                 {showHistory ? (
                   <div className="history-panel">
-                    {Object.entries(data.dayPlans)
-                      .filter(([key]) => key !== dayKey)
-                      .sort(([a], [b]) => (a > b ? -1 : 1))
-                      .map(([key, plan]) => {
-                        const dayDifficulties = data.difficultyRecords.filter((r) => r.dayKey === key)
-                        const daySessions = data.focusSessions.filter((s) => s.dayKey === key)
+                    <div className="history-toolbar">
+                      <select value={historyFilter} onChange={(e) => setHistoryFilter(e.target.value as typeof historyFilter)}>
+                        <option value="all">全部</option>
+                        <option value="review">有复盘</option>
+                        <option value="focus">有专注记录</option>
+                        <option value="difficulty">有困难记录</option>
+                        <option value="notes">有过程笔记</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="搜索关键词（如：卡点、完成）"
+                        value={historyQuery}
+                        onChange={(e) => setHistoryQuery(e.target.value)}
+                      />
+                      <span className="muted">{filteredHistoryDays.length} / {historyDays.length} 天</span>
+                    </div>
+                    {historySyncMessage ? (
+                      <p className={historySyncStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{historySyncMessage}</p>
+                    ) : null}
+                    {filteredHistoryDays.map(({ key, plan, dayDifficulties, daySessions }) => {
                         return (
                           <details key={key} className="history-day">
                             <summary>
                               <strong>{key}</strong>
                               <span className="muted"> — {plan.todayItems.filter((i) => i.isDone).length}/{plan.todayItems.length} 项完成</span>
                             </summary>
+                            <div className="history-day-actions">
+                              <button
+                                type="button"
+                                className="tiny-button"
+                                disabled={historySyncingDayKey === key}
+                                onClick={() => void handleSyncHistoryToFeishu(key)}
+                              >
+                                {historySyncingDayKey === key ? '补交中…' : '补交飞书'}
+                              </button>
+                            </div>
                             {plan.review ? (
                               <div className="history-review">
                                 {plan.review.wins ? <p><strong>完成：</strong>{plan.review.wins}</p> : null}
@@ -2307,7 +2437,7 @@ function App() {
                             {plan.processNotes ? (
                               <div className="history-notes">
                                 <p className="muted">过程笔记：</p>
-                                <pre>{plan.processNotes}</pre>
+                                <pre style={{ color: plan.processNotesColor ?? '#1f2937' }}>{plan.processNotes}</pre>
                               </div>
                             ) : null}
                           </details>
@@ -2444,7 +2574,7 @@ function App() {
                 value={dayPlan.processNotes ?? ''}
                 onChange={(e) => actions.updateProcessNotes(e.target.value)}
                 placeholder="随时记录想法、发现、卡点…"
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1 }}
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1, color: dayPlan.processNotesColor ?? '#1f2937' }}
               />
               <div className="notes-toolbar">
                 <button type="button" onClick={() => {
@@ -2461,6 +2591,10 @@ function App() {
                 <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>` `</button>
                 <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
                 <button type="button" onClick={() => insertNotesMarkdown('- ', '\n', '列表')}>•</button>
+                <button type="button" className="color-dot" style={{ background: '#1f2937' }} onClick={() => actions.updateProcessNotesColor('#1f2937')} title="黑色" />
+                <button type="button" className="color-dot" style={{ background: '#c81e1e' }} onClick={() => actions.updateProcessNotesColor('#c81e1e')} title="红色" />
+                <button type="button" className="color-dot" style={{ background: '#1d4ed8' }} onClick={() => actions.updateProcessNotesColor('#1d4ed8')} title="蓝色" />
+                <button type="button" className="color-dot" style={{ background: '#15803d' }} onClick={() => actions.updateProcessNotesColor('#15803d')} title="绿色" />
               </div>
             </div>
           ) : null}

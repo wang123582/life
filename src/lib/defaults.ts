@@ -151,6 +151,7 @@ export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefin
     communicationDone: false,
     communicationNote: '',
     processNotes: '',
+      processNotesColor: '#1f2937',
     review: null,
   }
 }

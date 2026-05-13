@@ -64,6 +64,7 @@ export interface DayPlan {
   communicationDone: boolean
   communicationNote: string
   processNotes: string
+  processNotesColor: string
   review: DailyReview | null
 }
 
