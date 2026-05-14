@@ -2103,10 +2103,10 @@ button:disabled {
   width: 100%;
 }
 .history-day {
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
   padding: 10px 12px;
-  background: var(--bg-card, rgba(255, 255, 255, 0.8));
+  background: rgba(16, 20, 36, 0.95);
 }
 .history-day summary {
   cursor: pointer;
@@ -2125,21 +2125,69 @@ button:disabled {
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.5;
+  color: #b4bddb;
 }
-.history-notes pre {
-  white-space: pre-wrap;
-  font-size: 12px;
-  background: var(--bg-dim, rgba(0,0,0,0.03));
-  padding: 8px;
-  border-radius: 4px;
-  max-height: 200px;
-  overflow-y: auto;
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  color: #bcc7ff;
+  border: 1px solid rgba(110, 132, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(110, 132, 255, 0.08);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.secondary-button:hover {
+  background: rgba(110, 132, 255, 0.15);
+  border-color: rgba(110, 132, 255, 0.5);
+}
+.sync-status {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.sync-status.success {
+  color: #b8ffd6;
+  background: rgba(88, 224, 180, 0.08);
+}
+.sync-status.error {
+  color: #ffb4b4;
+  background: rgba(255, 100, 100, 0.08);
 }
 
 .notes-toolbar .color-dot {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 0;
+}
+.notes-editable {
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  color: #dce4ff;
+  caret-color: #bcc7ff;
+  min-height: 80px;
+}
+.notes-editable:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+.history-notes-content {
+  white-space: pre-wrap;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  color: #dce4ff;
 }

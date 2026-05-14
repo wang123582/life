@@ -127,21 +127,23 @@ function App() {
   const [historySyncingDayKey, setHistorySyncingDayKey] = useState('')
   const [historySyncMessage, setHistorySyncMessage] = useState('')
   const [historySyncStatus, setHistorySyncStatus] = useState<'success' | 'error' | ''>('')
-  const notesRef = useRef<HTMLTextAreaElement>(null)
+  const notesRef = useRef<HTMLDivElement>(null)
+
+  const applyNoteColor = useCallback((color: string) => {
+    const el = notesRef.current
+    if (!el) return
+    el.focus()
+    document.execCommand('foreColor', false, color)
+    actions.updateProcessNotes(el.innerHTML)
+  }, [actions])
 
   const insertNotesMarkdown = useCallback((prefix: string, suffix: string, placeholder: string) => {
-    const ta = notesRef.current
-    if (!ta) return
-    const { selectionStart: s, selectionEnd: e, value } = ta
-    const selected = value.slice(s, e)
-    const insert = selected || placeholder
-    const newVal = value.slice(0, s) + prefix + insert + suffix + value.slice(e)
-    actions.updateProcessNotes(newVal)
-    requestAnimationFrame(() => {
-      ta.focus()
-      const cur = s + prefix.length
-      ta.setSelectionRange(cur, cur + insert.length)
-    })
+    const el = notesRef.current
+    if (!el) return
+    const sel = window.getSelection()
+    const selected = sel?.toString() || placeholder
+    document.execCommand('insertText', false, prefix + selected + suffix)
+    actions.updateProcessNotes(el.innerHTML)
   }, [actions])
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
@@ -2437,7 +2439,7 @@ function App() {
                             {plan.processNotes ? (
                               <div className="history-notes">
                                 <p className="muted">过程笔记：</p>
-                                <pre style={{ color: plan.processNotesColor ?? '#1f2937' }}>{plan.processNotes}</pre>
+                                <div className="history-notes-content" dangerouslySetInnerHTML={{ __html: plan.processNotes }} />
                               </div>
                             ) : null}
                           </details>
@@ -2569,32 +2571,37 @@ function App() {
           )}
           {showProcessNotes ? (
             <div className="process-notes-panel">
-              <textarea
+              <div
+                key={dayKey}
                 ref={notesRef}
-                value={dayPlan.processNotes ?? ''}
-                onChange={(e) => actions.updateProcessNotes(e.target.value)}
-                placeholder="随时记录想法、发现、卡点…"
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1, color: dayPlan.processNotesColor ?? '#1f2937' }}
+                className="notes-editable"
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => actions.updateProcessNotes((e.target as HTMLDivElement).innerHTML)}
+                dangerouslySetInnerHTML={{ __html: dayPlan.processNotes ?? '' }}
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1 }}
+                data-placeholder="随时记录想法、发现、卡点…"
               />
               <div className="notes-toolbar">
                 <button type="button" onClick={() => {
+                  const el = notesRef.current
+                  if (!el) return
                   const now = dayjs().format('HH:mm')
-                  const cur = dayPlan.processNotes ?? ''
-                  const sep = cur.trim() ? `\n\n--- ${now} ---\n` : `--- ${now} ---\n`
-                  actions.updateProcessNotes(cur + sep)
-                  requestAnimationFrame(() => {
-                    const ta = notesRef.current
-                    if (ta) { ta.scrollTop = ta.scrollHeight; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length) }
-                  })
+                  const sep = el.innerHTML.trim() ? `<br><br>--- ${now} ---<br>` : `--- ${now} ---<br>`
+                  el.innerHTML += sep
+                  actions.updateProcessNotes(el.innerHTML)
+                  requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; el.focus() })
                 }}>+ 新笔记</button>
                 <button type="button" onClick={() => insertNotesMarkdown('\n```\n', '\n```\n', 'code')}>{'</>'}</button>
                 <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>` `</button>
                 <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
                 <button type="button" onClick={() => insertNotesMarkdown('- ', '\n', '列表')}>•</button>
-                <button type="button" className="color-dot" style={{ background: '#1f2937' }} onClick={() => actions.updateProcessNotesColor('#1f2937')} title="黑色" />
-                <button type="button" className="color-dot" style={{ background: '#c81e1e' }} onClick={() => actions.updateProcessNotesColor('#c81e1e')} title="红色" />
-                <button type="button" className="color-dot" style={{ background: '#1d4ed8' }} onClick={() => actions.updateProcessNotesColor('#1d4ed8')} title="蓝色" />
-                <button type="button" className="color-dot" style={{ background: '#15803d' }} onClick={() => actions.updateProcessNotesColor('#15803d')} title="绿色" />
+                <button type="button" className="color-dot" style={{ background: '#ffffff', border: '1px solid rgba(255,255,255,0.4)' }} onClick={() => applyNoteColor('#ffffff')} title="白色" />
+                <button type="button" className="color-dot" style={{ background: '#dce4ff' }} onClick={() => applyNoteColor('#dce4ff')} title="浅蓝白" />
+                <button type="button" className="color-dot" style={{ background: '#fbbf24' }} onClick={() => applyNoteColor('#fbbf24')} title="黄色" />
+                <button type="button" className="color-dot" style={{ background: '#c81e1e' }} onClick={() => applyNoteColor('#c81e1e')} title="红色" />
+                <button type="button" className="color-dot" style={{ background: '#60a5fa' }} onClick={() => applyNoteColor('#60a5fa')} title="蓝色" />
+                <button type="button" className="color-dot" style={{ background: '#4ade80' }} onClick={() => applyNoteColor('#4ade80')} title="绿色" />
               </div>
             </div>
           ) : null}
