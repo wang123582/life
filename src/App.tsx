@@ -128,23 +128,35 @@ function App() {
   const [historySyncMessage, setHistorySyncMessage] = useState('')
   const [historySyncStatus, setHistorySyncStatus] = useState<'success' | 'error' | ''>('')
   const notesRef = useRef<HTMLDivElement>(null)
+  const notesSaveTimer = useRef<number>(0)
+
+  const saveNotesNow = useCallback(() => {
+    const el = notesRef.current
+    if (el) actions.updateProcessNotes(el.innerHTML)
+  }, [actions])
+
+  const handleNotesInput = useCallback(() => {
+    clearTimeout(notesSaveTimer.current)
+    notesSaveTimer.current = window.setTimeout(saveNotesNow, 300)
+  }, [saveNotesNow])
 
   const applyNoteColor = useCallback((color: string) => {
     const el = notesRef.current
     if (!el) return
     el.focus()
     document.execCommand('foreColor', false, color)
-    actions.updateProcessNotes(el.innerHTML)
-  }, [actions])
+    saveNotesNow()
+  }, [saveNotesNow])
 
   const insertNotesMarkdown = useCallback((prefix: string, suffix: string, placeholder: string) => {
     const el = notesRef.current
     if (!el) return
+    el.focus()
     const sel = window.getSelection()
     const selected = sel?.toString() || placeholder
     document.execCommand('insertText', false, prefix + selected + suffix)
-    actions.updateProcessNotes(el.innerHTML)
-  }, [actions])
+    saveNotesNow()
+  }, [saveNotesNow])
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
   const [quickStartStep, setQuickStartStep] = useState('')
@@ -2573,12 +2585,18 @@ function App() {
             <div className="process-notes-panel">
               <div
                 key={dayKey}
-                ref={notesRef}
+                ref={(el) => {
+                  (notesRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                  if (el && !el.dataset.initialized) {
+                    el.innerHTML = dayPlan.processNotes ?? ''
+                    el.dataset.initialized = '1'
+                  }
+                }}
                 className="notes-editable"
                 contentEditable
                 suppressContentEditableWarning
-                onInput={(e) => actions.updateProcessNotes((e.target as HTMLDivElement).innerHTML)}
-                dangerouslySetInnerHTML={{ __html: dayPlan.processNotes ?? '' }}
+                onInput={handleNotesInput}
+                onBlur={saveNotesNow}
                 style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1 }}
                 data-placeholder="随时记录想法、发现、卡点…"
               />
