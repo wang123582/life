@@ -992,6 +992,65 @@ button {
   color: #ffd48f;
 }
 
+/* ── 今日红线提醒 ── */
+.redline-banner {
+  border: 1px solid rgba(255, 120, 85, 0.3);
+  border-left: 4px solid rgba(255, 120, 85, 0.7);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: rgba(255, 80, 60, 0.06);
+}
+.redline-banner.empty {
+  border-color: rgba(255, 189, 89, 0.25);
+  border-left-color: rgba(255, 189, 89, 0.6);
+  background: rgba(255, 189, 89, 0.05);
+}
+.redline-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.redline-header strong {
+  color: #ffb4a0;
+  font-size: 14px;
+}
+.redline-banner.empty .redline-header strong {
+  color: #ffd48f;
+}
+.redline-icon {
+  font-size: 16px;
+}
+.redline-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.redline-item {
+  background: rgba(255, 120, 85, 0.12);
+  border: 1px solid rgba(255, 120, 85, 0.25);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: #ffcfc0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.redline-item:hover {
+  background: rgba(255, 120, 85, 0.2);
+}
+.redline-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #97a1c2;
+}
+
+/* ── 不做 Section 增强 ── */
+.today-boundaries-section {
+  border-left: 3px solid rgba(255, 160, 89, 0.5);
+}
+
 .inline-form,
 .stack-form {
   display: flex;

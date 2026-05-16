@@ -238,6 +238,7 @@ function App() {
   const firstPlannerSuggestion = plannerSuggestions[0]
   const primaryStep = primaryTodayItem?.steps.find((step) => !step.isDone)
   const primaryAvoid = dayPlan.avoidItems.find((item) => !item.isDone)?.text ?? data.ruleDefs.find((rule) => rule.type === 'avoid')?.text
+  const unguardedAvoids = dayPlan.avoidItems.filter((item) => !item.isDone)
   const primaryRule = data.ruleDefs.find((rule) => rule.type === 'do')?.text
   const nextRoutine = dayPlan.todayItems.find((item) => item.kind === 'routine' && !item.isDone)
   const primaryStepLabel = primaryStep?.title ?? '先拆一个最小动作'
@@ -1359,6 +1360,31 @@ function App() {
                   </div>
                 </div>
               </Section>
+
+              {unguardedAvoids.length > 0 ? (
+                <div className="redline-banner">
+                  <div className="redline-header">
+                    <span className="redline-icon">🚫</span>
+                    <strong>今日红线 · {unguardedAvoids.length} 条未守住</strong>
+                  </div>
+                  <div className="redline-items">
+                    {unguardedAvoids.map((item) => (
+                      <button key={item.id} type="button" className="redline-item" onClick={() => actions.toggleAvoidDone(item.id)}>
+                        {item.text}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="redline-hint">点击可标记"已守住"</p>
+                </div>
+              ) : dayPlan.avoidItems.length === 0 ? (
+                <div className="redline-banner empty">
+                  <div className="redline-header">
+                    <span className="redline-icon">⚠️</span>
+                    <strong>还没设边界</strong>
+                  </div>
+                  <p className="redline-hint">有时候不知道做什么，但一定知道不能做什么。先写一条最容易失守的。</p>
+                </div>
+              ) : null}
 
               <Section
                 className="today-quickstart-section"
