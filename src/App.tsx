@@ -204,6 +204,9 @@ function App() {
   const [contextReminder, setContextReminder] = useState('')
   const [lastReminderKey, setLastReminderKey] = useState('')
   const [lastInteractionAt, setLastInteractionAt] = useState<number>(() => Date.now())
+  const [desktopNotificationPermission, setDesktopNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() =>
+    'Notification' in window ? Notification.permission : 'unsupported',
+  )
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [isStandalone, setIsStandalone] = useState<boolean>(() => window.matchMedia('(display-mode: standalone)').matches)
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() => window.matchMedia('(max-width: 768px)').matches)
@@ -246,10 +249,65 @@ function App() {
     () => data.taskDefs.filter((task) => task.kind === 'routine' && Boolean(task.scheduleTime?.trim())).length,
     [data.taskDefs],
   )
+  const desktopNotificationsSupported = desktopNotificationPermission !== 'unsupported'
+  const desktopNotificationsActive = desktopNotificationsSupported && desktopNotificationPermission === 'granted' && data.settings.desktopNotificationsEnabled
   const activeTimerRange = activeTimer
     ? `${dayjs(activeTimer.startedAt).format('HH:mm')} - ${dayjs(activeTimer.startedAt).add(activeTimer.durationMinutes, 'minute').format('HH:mm')}`
     : ''
   const showCompactMobileTodayHeader = isMobileLayout && activeTab === 'today'
+
+  const sendDesktopNotification = useCallback(
+    (title: string, body: string, options?: { force?: boolean }) => {
+      if (!data.settings.desktopNotificationsEnabled) return
+      if (!('Notification' in window) || Notification.permission !== 'granted') return
+      if (!options?.force && document.visibilityState === 'visible' && document.hasFocus()) return
+
+      void new Notification(title, { body })
+    },
+    [data.settings.desktopNotificationsEnabled],
+  )
+
+  const requestDesktopNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+      setDesktopNotificationPermission('unsupported')
+      setFlashTone('warning')
+      setFlashMessage('当前浏览器不支持电脑消息提醒。')
+      return 'unsupported' as const
+    }
+
+    const result = await Notification.requestPermission()
+    setDesktopNotificationPermission(result)
+
+    if (result === 'granted') {
+      actions.updateSettings({ desktopNotificationsEnabled: true })
+      setFlashTone('success')
+      setFlashMessage('电脑消息提醒已开启。')
+    } else if (result === 'denied') {
+      setFlashTone('warning')
+      setFlashMessage('浏览器拦截了电脑消息提醒，可在地址栏旁重新允许。')
+    }
+
+    return result
+  }, [actions])
+
+  const handleTestDesktopNotification = useCallback(async () => {
+    const permission =
+      desktopNotificationPermission === 'granted'
+        ? 'granted'
+        : await requestDesktopNotificationPermission()
+
+    if (permission !== 'granted') {
+      return
+    }
+
+    if (!data.settings.desktopNotificationsEnabled) {
+      actions.updateSettings({ desktopNotificationsEnabled: true })
+    }
+
+    sendDesktopNotification('life 电脑提醒测试', '如果你看到了这条，番茄结束、休息结束和固定提醒都会这样弹出来。', { force: true })
+    setFlashTone('success')
+    setFlashMessage('已发送一条电脑提醒测试。')
+  }, [actions, data.settings.desktopNotificationsEnabled, desktopNotificationPermission, requestDesktopNotificationPermission, sendDesktopNotification])
 
   const feedbackSummary = useMemo(() => {
     if (activeTimer?.mode === 'shortBreak') {
@@ -329,10 +387,18 @@ function App() {
     setBlockedTargets(data.settings.blockedTargets.join('\n'))
   }, [data.settings.blockedTargets])
 
-  // Auto-request notification permission on mount
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      void Notification.requestPermission()
+    const syncDesktopNotificationPermission = () => {
+      setDesktopNotificationPermission('Notification' in window ? Notification.permission : 'unsupported')
+    }
+
+    syncDesktopNotificationPermission()
+    window.addEventListener('focus', syncDesktopNotificationPermission)
+    document.addEventListener('visibilitychange', syncDesktopNotificationPermission)
+
+    return () => {
+      window.removeEventListener('focus', syncDesktopNotificationPermission)
+      document.removeEventListener('visibilitychange', syncDesktopNotificationPermission)
     }
   }, [])
 
@@ -369,11 +435,7 @@ function App() {
       setFlashTone('success')
       setFlashMessage('休息时间结束了，回来继续下一轮。')
 
-      if ('Notification' in window && Notification.permission === 'granted') {
-        void new Notification('休息结束', {
-          body: '休息差不多了，回来继续推进今天最重要的事。',
-        })
-      }
+      sendDesktopNotification('休息结束', '休息差不多了，回来继续推进今天最重要的事。', { force: true })
 
       return
     }
@@ -384,12 +446,8 @@ function App() {
 
     playAlarmSound()
 
-    if ('Notification' in window && Notification.permission === 'granted') {
-      void new Notification('番茄钟结束', {
-        body: '先记一下结果，然后去休息一会儿。',
-      })
-    }
-  }, [activeTimer, remainingSeconds, finishOpen])
+    sendDesktopNotification('番茄钟结束', '先记一下结果，然后去休息一会儿。', { force: true })
+  }, [activeTimer, finishOpen, remainingSeconds, sendDesktopNotification])
 
   useEffect(() => {
     const handleActivity = () => setLastInteractionAt(Date.now())
@@ -528,11 +586,7 @@ function App() {
 
       playReminderSound()
 
-      if ('Notification' in window && Notification.permission === 'granted') {
-        void new Notification('life 提醒你一下', {
-          body: message,
-        })
-      }
+      sendDesktopNotification('life 提醒你一下', message)
     }
 
     const intervalId = window.setInterval(() => {
@@ -567,7 +621,7 @@ function App() {
     }, 10000)
 
     return () => window.clearInterval(intervalId)
-  }, [activeTimer, data.taskDefs, dayKey, dayPlan.todayItems, lastInteractionAt, lastReminderKey, primaryStep, primaryTodayItem])
+  }, [activeTimer, data.taskDefs, dayKey, dayPlan.todayItems, lastInteractionAt, lastReminderKey, primaryStep, primaryTodayItem, sendDesktopNotification])
 
   const summary = {
     total: actionableTodayItems.length,
@@ -1125,10 +1179,15 @@ function App() {
     }
   }
 
-  const askNotificationPermission = async () => {
-    if (!('Notification' in window)) return
-    await Notification.requestPermission()
-  }
+  const desktopNotificationStatusText = !desktopNotificationsSupported
+    ? '当前浏览器不支持电脑消息提醒。'
+    : desktopNotificationPermission === 'granted'
+      ? data.settings.desktopNotificationsEnabled
+        ? '电脑消息提醒已开启。'
+        : '浏览器已授权，但你在 app 里把电脑提醒关掉了。'
+      : desktopNotificationPermission === 'denied'
+        ? '浏览器已拒绝电脑消息提醒，需要手动在站点权限里重新允许。'
+        : '还没拿到电脑消息提醒权限。'
 
   const handleInstallApp = async () => {
     if (!installPromptEvent) return
@@ -1242,8 +1301,8 @@ function App() {
               <details className="topbar-actions-details">
                 <summary>更多今天操作</summary>
                 <div className="topbar-actions-menu">
-                  <button type="button" className="ghost-button" onClick={askNotificationPermission}>
-                    开启系统提醒
+                  <button type="button" className="ghost-button" onClick={() => void requestDesktopNotificationPermission()}>
+                    开启电脑提醒
                   </button>
                   <button type="button" className="ghost-button danger" onClick={actions.resetAll}>
                     重置数据
@@ -2128,6 +2187,38 @@ function App() {
                           : '想让手机和电脑互通时，再打开同步。'}
                     </p>
                   </div>
+                  <div className="settings-basics-card">
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={data.settings.desktopNotificationsEnabled}
+                        onChange={(event) => actions.updateSettings({ desktopNotificationsEnabled: event.target.checked })}
+                        disabled={!desktopNotificationsSupported}
+                      />
+                      <span>电脑端开启消息提醒</span>
+                    </label>
+                    <div className="feishu-actions compact-actions-grid">
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => void requestDesktopNotificationPermission()}
+                        disabled={!desktopNotificationsSupported}
+                      >
+                        {desktopNotificationPermission === 'granted' ? '重新检查电脑提醒权限' : '申请电脑提醒权限'}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => void handleTestDesktopNotification()}
+                        disabled={!desktopNotificationsSupported}
+                      >
+                        测试电脑提醒
+                      </button>
+                    </div>
+                    <p className="muted">只要浏览器标签页或桌面版 PWA 开着，番茄结束、休息结束、固定生活提醒和空转提醒都能弹出电脑消息。</p>
+                    <p className={desktopNotificationsActive ? 'sync-status success' : 'sync-status error'}>{desktopNotificationStatusText}</p>
+                  </div>
+
                   <div className="settings-basics-card">
                     <label className="checkbox-row">
                       <input

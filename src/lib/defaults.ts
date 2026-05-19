@@ -187,6 +187,7 @@ export function defaultData(): LifeAppData {
     settings: {
       focusMinutes: 25,
       breakMinutes: 5,
+      desktopNotificationsEnabled: true,
       blockerLevel: 'soft',
       blockedTargets: ['抖音', '微博', '小红书', 'Bilibili'],
       encouragementEnabled: true,

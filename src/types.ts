@@ -131,6 +131,7 @@ export interface WeeklyTemplate {
 export interface AppSettings {
   focusMinutes: number
   breakMinutes: number
+  desktopNotificationsEnabled: boolean
   blockerLevel: 'light' | 'soft' | 'hard'
   blockedTargets: string[]
   encouragementEnabled: boolean
