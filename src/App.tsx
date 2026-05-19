@@ -1696,6 +1696,7 @@ function App() {
               </Section>
 
               <Section
+                className="today-routines-section"
                 kicker="Simple"
                 title="固定简单提醒"
                 subtitle="像吃饭、洗澡、走动这种简单事情，不再混进需要分解的主任务里，只负责按时提醒。"
