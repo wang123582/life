@@ -30,6 +30,21 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'templates', label: '设置' },
 ]
 
+// 过程笔记取色盘：取自 Tailwind 400 级配色，深色背景上清晰且协调。
+const NOTE_COLORS: Array<{ label: string; value: string; border?: boolean }> = [
+  { label: '白', value: '#ffffff', border: true },
+  { label: '浅蓝白', value: '#dce4ff' },
+  { label: '灰', value: '#94a3b8' },
+  { label: '红', value: '#f87171' },
+  { label: '橙', value: '#fb923c' },
+  { label: '黄', value: '#fbbf24' },
+  { label: '绿', value: '#4ade80' },
+  { label: '青', value: '#2dd4bf' },
+  { label: '蓝', value: '#60a5fa' },
+  { label: '紫', value: '#a78bfa' },
+  { label: '粉', value: '#f472b6' },
+]
+
 const hourOptions = Array.from({ length: 24 }, (_, value) => String(value).padStart(2, '0'))
 const minuteOptions = Array.from({ length: 60 }, (_, value) => String(value).padStart(2, '0'))
 
@@ -3119,12 +3134,17 @@ function App() {
                 <button type="button" title="行内代码" onClick={() => wrapNoteCode(false)}>` `</button>
                 <button type="button" title="加粗" style={{ fontWeight: 700 }} onClick={() => runNoteCommand('bold')}>B</button>
                 <button type="button" title="列表" onClick={() => runNoteCommand('insertUnorderedList')}>•</button>
-                <button type="button" className="color-dot" style={{ background: '#ffffff', border: '1px solid rgba(255,255,255,0.4)' }} onClick={() => applyNoteColor('#ffffff')} title="白色" />
-                <button type="button" className="color-dot" style={{ background: '#dce4ff' }} onClick={() => applyNoteColor('#dce4ff')} title="浅蓝白" />
-                <button type="button" className="color-dot" style={{ background: '#fbbf24' }} onClick={() => applyNoteColor('#fbbf24')} title="黄色" />
-                <button type="button" className="color-dot" style={{ background: '#c81e1e' }} onClick={() => applyNoteColor('#c81e1e')} title="红色" />
-                <button type="button" className="color-dot" style={{ background: '#60a5fa' }} onClick={() => applyNoteColor('#60a5fa')} title="蓝色" />
-                <button type="button" className="color-dot" style={{ background: '#4ade80' }} onClick={() => applyNoteColor('#4ade80')} title="绿色" />
+                {NOTE_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    className="color-dot"
+                    style={{ background: color.value, border: color.border ? '1px solid rgba(255,255,255,0.4)' : undefined }}
+                    onClick={() => applyNoteColor(color.value)}
+                    title={color.label}
+                    aria-label={`字色 ${color.label}`}
+                  />
+                ))}
               </div>
             </div>
           </div>
