@@ -12,8 +12,11 @@ import {
   ensureNativeTimerPermission,
   openExactAlarmSettings,
   scheduleFocusTimerNotification,
+  syncEveningReminders,
   syncRoutineReminderNotifications,
 } from './lib/mobileTimer'
+import { CORE_PRINCIPLES } from './lib/principles'
+import { buildProgressSummary } from './lib/stats'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
 import { createSyncSpaceId, isSyncEnvReady, syncSetupSql } from './lib/sync'
 import { useLifeApp } from './hooks/useLifeApp'
@@ -23,8 +26,8 @@ import type { DifficultyType, ReviewInput, StateType, TabKey, TodayItem } from '
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'today', label: '今天' },
   { key: 'pool', label: '任务池' },
-  { key: 'templates', label: '设置' },
   { key: 'review', label: '复盘' },
+  { key: 'templates', label: '设置' },
 ]
 
 const hourOptions = Array.from({ length: 24 }, (_, value) => String(value).padStart(2, '0'))
@@ -66,6 +69,8 @@ function Section({
   subtitle,
   actions,
   children,
+  collapsible,
+  defaultOpen,
 }: {
   className?: string
   kicker?: string
@@ -73,26 +78,67 @@ function Section({
   subtitle?: string
   actions?: React.ReactNode
   children: React.ReactNode
+  collapsible?: boolean
+  defaultOpen?: boolean
 }) {
+  const header = (
+    <div className="panel-header">
+      <div>
+        {kicker ? <span className="section-kicker">{kicker}</span> : null}
+        <h2>{title}</h2>
+        {subtitle ? <p>{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="panel-actions">{actions}</div> : null}
+    </div>
+  )
+
+  if (collapsible) {
+    return (
+      <details className={`panel collapsible-card collapsible-section${className ? ` ${className}` : ''}`} open={defaultOpen}>
+        <summary>{header}</summary>
+        {children}
+      </details>
+    )
+  }
+
   return (
     <section className={className ? `panel ${className}` : 'panel'}>
-      <div className="panel-header">
-        <div>
-          {kicker ? <span className="section-kicker">{kicker}</span> : null}
-          <h2>{title}</h2>
-          {subtitle ? <p>{subtitle}</p> : null}
-        </div>
-        {actions ? <div className="panel-actions">{actions}</div> : null}
-      </div>
+      {header}
       {children}
     </section>
   )
 }
 
 function App() {
-  const { data, dayKey, dayPlan, pendingTodayItems, activeRelaxWindow, todayDifficultyRecords, todayStateRecords, todayFocusSessions, sync, actions } =
+  const { data, dayKey, dayPlan, pendingTodayItems, isMorningAnchorPending, activeRelaxWindow, todayDifficultyRecords, todayStateRecords, todayFocusSessions, sync, actions } =
     useLifeApp()
   const [activeTab, setActiveTab] = useState<TabKey>('today')
+
+  // M1 硬阻断：未确认"今日三件事"前，强制停留在今天页，不允许进入其它 Tab。
+  useEffect(() => {
+    if (isMorningAnchorPending && activeTab !== 'today') {
+      setActiveTab('today')
+    }
+  }, [isMorningAnchorPending, activeTab])
+
+  const goToTab = (key: TabKey) => {
+    if (isMorningAnchorPending && key !== 'today') {
+      setActiveTab('today')
+      return
+    }
+    setActiveTab(key)
+  }
+
+  const [anchorInputs, setAnchorInputs] = useState<string[]>([])
+  const setAnchorAt = (index: number, value: string) => {
+    setAnchorInputs((prev) => {
+      const next = [...prev]
+      next[index] = value
+      return next
+    })
+  }
+  const [curiosityInput, setCuriosityInput] = useState('')
+  const progressSummary = useMemo(() => buildProgressSummary(data, 30), [data])
   const [taskTitle, setTaskTitle] = useState('')
   const [taskKind, setTaskKind] = useState<'normal' | 'routine'>('normal')
   const [taskHour, setTaskHour] = useState('')
@@ -137,17 +183,35 @@ function App() {
     actions.updateProcessNotes(el.innerHTML)
   }, [actions])
 
-  const insertNotesMarkdown = useCallback((prefix: string, suffix: string, placeholder: string) => {
+  const runNoteCommand = useCallback((command: string) => {
     const el = notesRef.current
     if (!el) return
-    const sel = window.getSelection()
-    const selected = sel?.toString() || placeholder
-    document.execCommand('insertText', false, prefix + selected + suffix)
+    el.focus()
+    document.execCommand(command)
     actions.updateProcessNotes(el.innerHTML)
   }, [actions])
+
+  const wrapNoteCode = useCallback((block: boolean) => {
+    const el = notesRef.current
+    if (!el) return
+    el.focus()
+    const sel = window.getSelection()
+    const text = (sel?.toString() || (block ? '代码块' : 'code'))
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    const html = block ? `<pre><code>${text}</code></pre><br>` : `<code>${text}</code>`
+    document.execCommand('insertHTML', false, html)
+    actions.updateProcessNotes(el.innerHTML)
+  }, [actions])
+
+  useEffect(() => {
+    if (showProcessNotes) {
+      requestAnimationFrame(() => notesRef.current?.focus())
+    }
+  }, [showProcessNotes])
   const [nextAction, setNextAction] = useState('')
   const [quickStartTitle, setQuickStartTitle] = useState('')
-  const [quickStartStep, setQuickStartStep] = useState('')
   const [showPoolAdvanced, setShowPoolAdvanced] = useState(false)
   const [dailySlots, setDailySlots] = useState(String(data.dailyTemplate.topTaskSlots))
   const [dailyRoutines, setDailyRoutines] = useState(String(data.dailyTemplate.routineSlots))
@@ -164,11 +228,15 @@ function App() {
   const [feishuWebhookUrl, setFeishuWebhookUrl] = useState(data.settings.feishuWebhookUrl)
   const [feishuKeyword, setFeishuKeyword] = useState(data.settings.feishuKeyword)
   const [feishuSecret, setFeishuSecret] = useState(data.settings.feishuSecret)
+  const [feishuScheduledSyncEnabled, setFeishuScheduledSyncEnabled] = useState(data.settings.feishuScheduledSyncEnabled)
+  const [feishuScheduledSyncTime, setFeishuScheduledSyncTime] = useState(data.settings.feishuScheduledSyncTime)
   const [reviewForm, setReviewForm] = useState<ReviewInput>({
     wins: dayPlan.review?.wins ?? '',
     slips: dayPlan.review?.slips ?? '',
     commonState: dayPlan.review?.commonState ?? '',
     tomorrow: dayPlan.review?.tomorrow ?? '',
+    tomorrowTop3: dayPlan.review?.tomorrowTop3 ?? ['', '', ''],
+    moodScore: dayPlan.review?.moodScore,
   })
   const [isTestingFeishu, setIsTestingFeishu] = useState(false)
   const [feishuTestMessage, setFeishuTestMessage] = useState('')
@@ -176,6 +244,8 @@ function App() {
   const [isSyncingFeishu, setIsSyncingFeishu] = useState(false)
   const [feishuSyncMessage, setFeishuSyncMessage] = useState('')
   const [feishuSyncStatus, setFeishuSyncStatus] = useState<'success' | 'error' | ''>('')
+  const [feishuScheduledSyncMessage, setFeishuScheduledSyncMessage] = useState('')
+  const [feishuScheduledSyncStatus, setFeishuScheduledSyncStatus] = useState<'success' | 'error' | ''>('')
   const [isSavingReview, setIsSavingReview] = useState(false)
   const [reviewSaveMessage, setReviewSaveMessage] = useState('')
   const [reviewSaveStatus, setReviewSaveStatus] = useState<'success' | 'error' | ''>('')
@@ -195,6 +265,7 @@ function App() {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [isStandalone, setIsStandalone] = useState<boolean>(() => window.matchMedia('(display-mode: standalone)').matches)
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() => window.matchMedia('(max-width: 768px)').matches)
+  const scheduledFeishuAttemptRef = useRef('')
 
   const activeTimer = data.activeTimer
   const isBreakTimer = activeTimer?.mode === 'shortBreak'
@@ -298,6 +369,8 @@ function App() {
       slips: dayPlan.review?.slips ?? '',
       commonState: dayPlan.review?.commonState ?? '',
       tomorrow: dayPlan.review?.tomorrow ?? '',
+      tomorrowTop3: dayPlan.review?.tomorrowTop3 ?? ['', '', ''],
+      moodScore: dayPlan.review?.moodScore,
     })
   }, [dayPlan.review])
 
@@ -305,7 +378,15 @@ function App() {
     setFeishuWebhookUrl(data.settings.feishuWebhookUrl)
     setFeishuKeyword(data.settings.feishuKeyword)
     setFeishuSecret(data.settings.feishuSecret)
-  }, [data.settings.feishuWebhookUrl, data.settings.feishuKeyword, data.settings.feishuSecret])
+    setFeishuScheduledSyncEnabled(data.settings.feishuScheduledSyncEnabled)
+    setFeishuScheduledSyncTime(data.settings.feishuScheduledSyncTime)
+  }, [
+    data.settings.feishuWebhookUrl,
+    data.settings.feishuKeyword,
+    data.settings.feishuSecret,
+    data.settings.feishuScheduledSyncEnabled,
+    data.settings.feishuScheduledSyncTime,
+  ])
 
   useEffect(() => {
     setSyncSpaceId(data.settings.syncSpaceId)
@@ -473,6 +554,26 @@ function App() {
     void syncRoutineReminderNotifications(routineTasks)
   }, [data.taskDefs, data.settings.mobileTimerEnabled, nativeTimerAvailable])
 
+  // S2：晚间复盘 / 硬性收工 两条每日提醒，随设置变化注册或取消。
+  useEffect(() => {
+    if (!nativeTimerAvailable) {
+      return
+    }
+
+    void syncEveningReminders({
+      reviewReminderEnabled: data.settings.reviewReminderEnabled,
+      reviewReminderTime: data.settings.reviewReminderTime,
+      hardStopEnabled: data.settings.hardStopEnabled,
+      hardStopTime: data.settings.hardStopTime,
+    })
+  }, [
+    nativeTimerAvailable,
+    data.settings.reviewReminderEnabled,
+    data.settings.reviewReminderTime,
+    data.settings.hardStopEnabled,
+    data.settings.hardStopTime,
+  ])
+
   useEffect(() => {
     if (!focusLockAvailable) {
       setFocusLockServiceEnabled(false)
@@ -634,27 +735,18 @@ function App() {
     setExpandedTaskId((prev) => (prev === itemId ? '' : itemId))
   }
 
-  const handleQuickStart = (startImmediately = false) => {
-    const created = actions.quickStartTodayTask(quickStartTitle, quickStartStep)
+  const handleQuickAdd = () => {
+    const created = actions.quickStartTodayTask(quickStartTitle)
 
     if (!created) {
       return
     }
 
     setQuickStartTitle('')
-    setQuickStartStep('')
-    setActiveTab('today')
     setSelectedItemId(created.todayItemId)
 
     if (isMobileLayout) {
       setExpandedTaskId(created.todayItemId)
-    }
-
-    if (startImmediately) {
-      actions.startFocusTimer(created.todayItemId, created.stepId)
-      setFlashTone('success')
-      setFlashMessage('已经帮你放进今天，并直接开始这一轮专注。')
-      return
     }
 
     setFlashTone('success')
@@ -748,6 +840,10 @@ function App() {
   }
 
   const handleSaveTemplates = () => {
+    const normalizedFeishuScheduledSyncTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(feishuScheduledSyncTime.trim())
+      ? feishuScheduledSyncTime.trim()
+      : '12:00'
+
     actions.updateDailyTemplate({
       topTaskSlots: Number(dailySlots) || data.dailyTemplate.topTaskSlots,
       routineSlots: Number(dailyRoutines) || data.dailyTemplate.routineSlots,
@@ -768,6 +864,8 @@ function App() {
       feishuWebhookUrl: feishuWebhookUrl.trim(),
       feishuKeyword: feishuKeyword.trim(),
       feishuSecret: feishuSecret.trim(),
+      feishuScheduledSyncEnabled,
+      feishuScheduledSyncTime: normalizedFeishuScheduledSyncTime,
     })
     setFlashTone('success')
     setFlashMessage('设置已经保存。先回到今天页继续做事就行。')
@@ -780,13 +878,58 @@ function App() {
     })
   }
 
+  const buildCurrentFeishuPreviewText = useCallback(() => {
+    const reviewPayload = reviewForm.wins || reviewForm.slips || reviewForm.commonState || reviewForm.tomorrow
+      ? {
+          ...reviewForm,
+          updatedAt: dayPlan.review?.updatedAt ?? new Date().toISOString(),
+        }
+      : dayPlan.review
+
+    return buildReportPreviewText({
+      webhookUrl: feishuWebhookUrl.trim(),
+      keyword: feishuKeyword.trim(),
+      secret: feishuSecret.trim(),
+      dayKey,
+      review: reviewPayload,
+      completedSteps,
+      difficulties: todayDifficultyRecords,
+      focusSessions: todayFocusSessions,
+      commonStateLabel: getStateLabel(reviewPayload?.commonState ?? ''),
+      communicationDone: dayPlan.communicationDone,
+      communicationNote,
+      processNotes: dayPlan.processNotes,
+    })
+  }, [
+    communicationNote,
+    completedSteps,
+    dayKey,
+    dayPlan.communicationDone,
+    dayPlan.processNotes,
+    dayPlan.review,
+    feishuKeyword,
+    feishuSecret,
+    feishuWebhookUrl,
+    reviewForm,
+    todayDifficultyRecords,
+    todayFocusSessions,
+  ])
+
+  const sendCurrentDayToFeishu = useCallback(async () => {
+    const webhookUrl = feishuWebhookUrl.trim()
+
+    if (!webhookUrl) {
+      throw new Error('先填飞书群机器人的 webhook 地址。')
+    }
+
+    await sendFeishuPlainText(
+      { webhookUrl, keyword: feishuKeyword.trim(), secret: feishuSecret.trim() },
+      buildCurrentFeishuPreviewText(),
+    )
+  }, [buildCurrentFeishuPreviewText, feishuKeyword, feishuSecret, feishuWebhookUrl])
+
   const handleSaveReview = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    const savedReview = {
-      ...reviewForm,
-      updatedAt: new Date().toISOString(),
-    }
 
     setIsSavingReview(true)
     setReviewSaveStatus('')
@@ -802,24 +945,8 @@ function App() {
 
     // Auto-sync to feishu after saving review
     try {
-      const text = buildReportPreviewText({
-        webhookUrl: feishuWebhookUrl.trim(),
-        keyword: feishuKeyword.trim(),
-        secret: feishuSecret.trim(),
-        dayKey,
-        review: savedReview,
-        completedSteps,
-        difficulties: todayDifficultyRecords,
-        focusSessions: todayFocusSessions,
-        commonStateLabel: getStateLabel(savedReview.commonState ?? ''),
-        communicationDone: dayPlan.communicationDone,
-        communicationNote,
-        processNotes: dayPlan.processNotes,
-      })
-      await sendFeishuPlainText(
-        { webhookUrl: feishuWebhookUrl.trim(), keyword: feishuKeyword.trim(), secret: feishuSecret.trim() },
-        text,
-      )
+      await sendCurrentDayToFeishu()
+      actions.updateSettings({ feishuLastScheduledSyncDayKey: dayKey })
       setReviewSaveStatus('success')
       setReviewSaveMessage('已保存复盘，并自动同步到飞书。')
       setFeishuSyncStatus('success')
@@ -1010,38 +1137,14 @@ function App() {
     setFeishuSyncMessage('')
 
     try {
-      const reviewPayload = reviewForm.wins || reviewForm.slips || reviewForm.commonState || reviewForm.tomorrow
-        ? {
-            ...reviewForm,
-            updatedAt: dayPlan.review?.updatedAt ?? new Date().toISOString(),
-          }
-        : dayPlan.review
-
-      const text = buildReportPreviewText({
-        webhookUrl,
-        keyword: feishuKeyword.trim(),
-        secret: feishuSecret.trim(),
-        dayKey,
-        review: reviewPayload,
-        completedSteps,
-        difficulties: todayDifficultyRecords,
-        focusSessions: todayFocusSessions,
-        commonStateLabel: getStateLabel(reviewPayload?.commonState ?? ''),
-        communicationDone: dayPlan.communicationDone,
-        communicationNote,
-        processNotes: dayPlan.processNotes,
-      })
-
       actions.updateSettings({
         feishuWebhookUrl: webhookUrl,
         feishuKeyword: feishuKeyword.trim(),
         feishuSecret: feishuSecret.trim(),
       })
 
-      await sendFeishuPlainText(
-        { webhookUrl, keyword: feishuKeyword.trim(), secret: feishuSecret.trim() },
-        text,
-      )
+      await sendCurrentDayToFeishu()
+      actions.updateSettings({ feishuLastScheduledSyncDayKey: dayKey })
 
       setFeishuSyncStatus('success')
       setFeishuSyncMessage('已把今天总结、完成步骤和困难日志发到飞书。')
@@ -1102,6 +1205,10 @@ function App() {
         text,
       )
 
+      if (targetDayKey === dayKey) {
+        actions.updateSettings({ feishuLastScheduledSyncDayKey: dayKey })
+      }
+
       setHistorySyncStatus('success')
       setHistorySyncMessage(`${targetDayKey} 已补交到飞书。`)
     } catch (error) {
@@ -1125,6 +1232,68 @@ function App() {
     setInstallPromptEvent(null)
   }
 
+  useEffect(() => {
+    if (!data.settings.feishuScheduledSyncEnabled) {
+      return
+    }
+
+    if (!data.settings.feishuWebhookUrl.trim()) {
+      return
+    }
+
+    const checkScheduledFeishuSync = () => {
+      const scheduledTime = data.settings.feishuScheduledSyncTime || '12:00'
+      const currentTime = dayjs().format('HH:mm')
+
+      if (currentTime < scheduledTime) {
+        return
+      }
+
+      if (data.settings.feishuLastScheduledSyncDayKey === dayKey) {
+        return
+      }
+
+      if (scheduledFeishuAttemptRef.current === dayKey) {
+        return
+      }
+
+      scheduledFeishuAttemptRef.current = dayKey
+
+      void sendCurrentDayToFeishu()
+        .then(() => {
+          actions.updateSettings({ feishuLastScheduledSyncDayKey: dayKey })
+          setFeishuScheduledSyncStatus('success')
+          setFeishuScheduledSyncMessage(`已在 ${currentTime} 自动把今天进展发到飞书。`)
+          setFlashTone('success')
+          setFlashMessage(`已自动提交飞书（${currentTime}）。`)
+        })
+        .catch((error) => {
+          setFeishuScheduledSyncStatus('error')
+          setFeishuScheduledSyncMessage(
+            error instanceof Error
+              ? `今天到 ${scheduledTime} 了，但自动同步飞书失败：${error.message}`
+              : `今天到 ${scheduledTime} 了，但自动同步飞书失败。`,
+          )
+        })
+    }
+
+    checkScheduledFeishuSync()
+
+    const intervalId = window.setInterval(checkScheduledFeishuSync, 30000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [
+    actions,
+    data.settings.feishuLastScheduledSyncDayKey,
+    data.settings.feishuScheduledSyncEnabled,
+    data.settings.feishuScheduledSyncTime,
+    data.settings.feishuWebhookUrl,
+    dayKey,
+    sendCurrentDayToFeishu,
+  ])
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -1134,16 +1303,21 @@ function App() {
         </div>
 
         <nav className="nav-list">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={tab.key === activeTab ? 'nav-button active' : 'nav-button'}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const locked = isMorningAnchorPending && tab.key !== 'today'
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={`${tab.key === activeTab ? 'nav-button active' : 'nav-button'}${locked ? ' nav-button-locked' : ''}`}
+                disabled={locked}
+                title={locked ? '先定今天三件事' : undefined}
+                onClick={() => goToTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
         </nav>
 
         <div className="sidebar-card">
@@ -1298,6 +1472,94 @@ function App() {
           <div className="page-grid today-page-grid">
             <div className="column-main">
               <Section
+                className="morning-anchor-section"
+                kicker="今日三件事"
+                title={isMorningAnchorPending ? '先定今天三件事' : '今天三件事'}
+                subtitle={
+                  isMorningAnchorPending
+                    ? '确认之前不能进入其它页面。写下今天最重要的事，按优先级从上到下排。'
+                    : '今天已经定好方向，按完成情况推进。'
+                }
+              >
+                {isMorningAnchorPending ? (
+                  <div className="stack-form">
+                    {Array.from({ length: data.dailyTemplate.topTaskSlots }).map((_, index) => (
+                      <input
+                        key={index}
+                        value={anchorInputs[index] ?? ''}
+                        placeholder={`第 ${index + 1} 件事`}
+                        onChange={(event) => setAnchorAt(index, event.target.value)}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={!anchorInputs.some((text) => text && text.trim())}
+                      onClick={() => {
+                        actions.confirmMorningAnchor(anchorInputs)
+                        setAnchorInputs([])
+                      }}
+                    >
+                      确认今天就做这三件
+                    </button>
+                  </div>
+                ) : (
+                  <p className="muted anchor-confirmed">今天三件事已经定好，去下面「今天要做什么」推进就行。</p>
+                )}
+              </Section>
+
+              <details className="panel collapsible-card execution-guidelines-section">
+                <summary>
+                  <span>执行守则 & 好奇清单</span>
+                  <span className="muted">{data.curiosityItems.filter((item) => !item.archived).length} 条好奇</span>
+                </summary>
+                <ul className="guideline-list">
+                  {data.ruleDefs
+                    .filter((rule) => rule.type === 'do')
+                    .map((rule) => (
+                      <li key={rule.id}>{rule.text}</li>
+                    ))}
+                </ul>
+                <div className="curiosity-box">
+                  <span className="muted-label">
+                    好奇清单（{activeRelaxWindow ? '现在可以消化' : '等放松窗口再看'}）
+                  </span>
+                  <div className="inline-row">
+                    <input
+                      value={curiosityInput}
+                      placeholder="先记下来，等会儿再看"
+                      onChange={(event) => setCuriosityInput(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => {
+                        actions.addCuriosityItem(curiosityInput)
+                        setCuriosityInput('')
+                      }}
+                    >
+                      记下
+                    </button>
+                  </div>
+                  <ul className="curiosity-list">
+                    {data.curiosityItems
+                      .filter((item) => !item.archived)
+                      .map((item) => (
+                        <li key={item.id}>
+                          <span>{item.text}</span>
+                          <button type="button" className="ghost-button" onClick={() => actions.archiveCuriosityItem(item.id)}>
+                            消化
+                          </button>
+                          <button type="button" className="ghost-button" onClick={() => actions.removeCuriosityItem(item.id)}>
+                            删除
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              </details>
+
+              <Section
                 className="today-overview-section"
                 kicker="Overview"
                 title="今天必须做的事情"
@@ -1349,46 +1611,22 @@ function App() {
               </Section>
 
               <Section
+                collapsible
                 className="today-quickstart-section"
-                kicker="Quick start"
-                title={showCompactMobileTodayHeader ? '现在就写，写完就开始' : '别研究全部，先开一件事'}
-                subtitle={showCompactMobileTodayHeader ? '手机上只保留开工入口：任务名、下一步、直接开始。' : '第一次用时，只做三步：写下最重要的一件事、补一个最小动作、直接开始。'}
+                kicker="Plan more"
+                title="从任务池再补充（可选）"
+                subtitle="今天三件事已是主线；需要时再快速加一件，或从任务池挑几件补进来。"
               >
                 <div className="quick-start-card">
-                  {!showCompactMobileTodayHeader ? (
-                    <ol className="quick-start-steps">
-                      <li>先写今天最重要的一件事。</li>
-                      <li>再写一个小到能立刻开始的动作。</li>
-                      <li>点“直接开始”，别再切来切去。</li>
-                    </ol>
-                  ) : (
-                    <p className="quick-start-mobile-note">先写一件事和一个最小动作，别先往下翻。</p>
-                  )}
-                  <div className="stack-form">
-                    <label>
-                      今天最重要的一件事
-                      <input
-                        value={quickStartTitle}
-                        onChange={(event) => setQuickStartTitle(event.target.value)}
-                        placeholder="例如：把简历的自我介绍改完"
-                      />
-                    </label>
-                    <label>
-                      现在只做这一步（可选）
-                      <input
-                        value={quickStartStep}
-                        onChange={(event) => setQuickStartStep(event.target.value)}
-                        placeholder="例如：先写第一段，不求完整"
-                      />
-                    </label>
-                    <div className="quick-start-actions">
-                      <button type="button" className="ghost-button" onClick={() => handleQuickStart(false)} disabled={!quickStartTitle.trim()}>
-                        先放进今天
-                      </button>
-                      <button type="button" className="primary-button" onClick={() => handleQuickStart(true)} disabled={!quickStartTitle.trim()}>
-                        直接开始 25 分钟
-                      </button>
-                    </div>
+                  <div className="inline-row">
+                    <input
+                      value={quickStartTitle}
+                      onChange={(event) => setQuickStartTitle(event.target.value)}
+                      placeholder="再加一件今天要做的（可选）"
+                    />
+                    <button type="button" className="secondary-button" onClick={handleQuickAdd} disabled={!quickStartTitle.trim()}>
+                      加入今天
+                    </button>
                   </div>
 
                   <div className="planner-inline-card">
@@ -1599,6 +1837,7 @@ function App() {
               </Section>
 
               <Section
+                collapsible
                 kicker="Simple"
                 title="固定简单提醒"
                 subtitle="像吃饭、洗澡、走动这种简单事情，不再混进需要分解的主任务里，只负责按时提醒。"
@@ -1624,6 +1863,7 @@ function App() {
               </Section>
 
               <Section
+                collapsible
                 className="today-boundaries-section"
                 kicker="Boundaries"
                 title="今天不做什么"
@@ -1703,7 +1943,7 @@ function App() {
                 </div>
               </Section>
 
-              <Section kicker="Support" title="卡住了？试试这些" subtitle="选一个你现在的状态，系统会建议你做什么。试完打个分，好用的方法会记下来。">
+              <Section collapsible kicker="Support" title="卡住了？试试这些" subtitle="选一个你现在的状态，系统会建议你做什么。试完打个分，好用的方法会记下来。">
                 <div className="compact-stack">
                   {interventionStep === 'pick-state' ? (
                     <div className="stack-form">
@@ -2019,6 +2259,17 @@ function App() {
         {activeTab === 'templates' ? (
           <div className="page-grid narrow">
             <div className="column-main">
+              <Section
+                className="principles-section"
+                title="核心原则"
+                subtitle="固定内置、不可修改——和下方可自定义的执行守则不同。"
+              >
+                <ol className="principles-list">
+                  {CORE_PRINCIPLES.map((principle) => (
+                    <li key={principle}>{principle}</li>
+                  ))}
+                </ol>
+              </Section>
               <Section title="核心设置" subtitle="大多数时候只要把今天任务控制少一点，别一上来改一堆选项。">
                 <div className="stack-form">
                   <div className="inline-grid triple">
@@ -2241,6 +2492,38 @@ function App() {
                         />
                         <span>开启鼓励提醒</span>
                       </label>
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={data.settings.reviewReminderEnabled}
+                          onChange={(event) => actions.updateSettings({ reviewReminderEnabled: event.target.checked })}
+                        />
+                        <span>晚间复盘提醒</span>
+                      </label>
+                      <label>
+                        复盘提醒时间
+                        <input
+                          type="time"
+                          value={data.settings.reviewReminderTime}
+                          onChange={(event) => actions.updateSettings({ reviewReminderTime: event.target.value })}
+                        />
+                      </label>
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={data.settings.hardStopEnabled}
+                          onChange={(event) => actions.updateSettings({ hardStopEnabled: event.target.checked })}
+                        />
+                        <span>硬性收工提示</span>
+                      </label>
+                      <label>
+                        硬性收工时间
+                        <input
+                          type="time"
+                          value={data.settings.hardStopTime}
+                          onChange={(event) => actions.updateSettings({ hardStopTime: event.target.value })}
+                        />
+                      </label>
                       <div className="chip-list compact-chip-list">
                         {data.settings.blockedTargets.map((target) => (
                           <span key={target} className="chip warning">
@@ -2286,6 +2569,25 @@ function App() {
                         />
                         <span>保存复盘后自动同步到飞书</span>
                       </label>
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={feishuScheduledSyncEnabled}
+                          onChange={(event) => setFeishuScheduledSyncEnabled(event.target.checked)}
+                        />
+                        <span>每天固定时间自动提交到飞书</span>
+                      </label>
+                      <label>
+                        固定提交时间
+                        <input type="time" value={feishuScheduledSyncTime} onChange={(event) => setFeishuScheduledSyncTime(event.target.value)} />
+                      </label>
+                      <p className="muted">
+                        默认是每天 12:00。只要应用当时开着，或当天 12 点后第一次打开时，它都会自动把今天进展发到飞书，防止忘记提交。
+                      </p>
+                      <p className="muted">如果网页和 App 都完全没开着，浏览器本身没法在后台替你代发。</p>
+                      {feishuScheduledSyncMessage ? (
+                        <p className={feishuScheduledSyncStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{feishuScheduledSyncMessage}</p>
+                      ) : null}
                       <div className="feishu-actions">
                         <button type="button" className="primary-button" onClick={handleTestFeishuConnection} disabled={isTestingFeishu}>
                           {isTestingFeishu ? '正在测试连接…' : '测试飞书连接'}
@@ -2358,6 +2660,52 @@ function App() {
                       onChange={(event) => setReviewForm((prev) => ({ ...prev, tomorrow: event.target.value }))}
                     />
                   </label>
+                  <div className="review-today-top3">
+                    <span className="muted-label">今日三件事完成情况</span>
+                    <ul>
+                      {dayPlan.todayItems
+                        .filter((item) => item.kind === 'normal')
+                        .slice(0, data.dailyTemplate.topTaskSlots)
+                        .map((item) => (
+                          <li key={item.id} className={item.isDone ? 'done' : undefined}>
+                            {item.isDone ? '✓ ' : '○ '}
+                            {item.title}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                  <div className="review-tomorrow-top3">
+                    <span className="muted-label">明日三件事</span>
+                    {[0, 1, 2].map((idx) => (
+                      <input
+                        key={idx}
+                        value={reviewForm.tomorrowTop3?.[idx] ?? ''}
+                        placeholder={`明日第 ${idx + 1} 件事`}
+                        onChange={(event) =>
+                          setReviewForm((prev) => {
+                            const arr = [...(prev.tomorrowTop3 ?? ['', '', ''])]
+                            arr[idx] = event.target.value
+                            return { ...prev, tomorrowTop3: arr }
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                  <label>
+                    今日状态评分（1–5）
+                    <div className="mood-scale">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          type="button"
+                          key={n}
+                          className={reviewForm.moodScore === n ? 'mood-dot active' : 'mood-dot'}
+                          onClick={() => setReviewForm((prev) => ({ ...prev, moodScore: n as 1 | 2 | 3 | 4 | 5 }))}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </label>
                   <button type="submit" className="primary-button" disabled={isSavingReview}>
                     {isSavingReview
                       ? '正在保存并同步…'
@@ -2369,6 +2717,37 @@ function App() {
                     <p className={reviewSaveStatus === 'error' ? 'sync-status error' : 'sync-status success'}>{reviewSaveMessage}</p>
                   ) : null}
                 </form>
+              </Section>
+
+              <Section className="progress-section" title="进度" subtitle="完成件数衡量进度，不由感觉。">
+                <div className="progress-stats">
+                  <div className="summary-card">
+                    <span>连续打卡</span>
+                    <strong>{progressSummary.currentStreak} 天</strong>
+                  </div>
+                  <div className="summary-card">
+                    <span>本周完成率</span>
+                    <strong>{Math.round(progressSummary.weeklyCompletionRate * 100)}%</strong>
+                  </div>
+                </div>
+                <div className="progress-heatmap" aria-label="近 30 天习惯日历">
+                  {progressSummary.days.map((day) => {
+                    const level = day.doneCount === 0 && day.focusCount === 0
+                      ? 0
+                      : day.doneCount >= 3
+                        ? 3
+                        : day.doneCount >= 1
+                          ? 2
+                          : 1
+                    return (
+                      <span
+                        key={day.dayKey}
+                        className={`heatmap-cell heatmap-level-${level}`}
+                        title={`${day.dayKey}：完成 ${day.doneCount}/${day.totalCount}，专注 ${day.focusCount}`}
+                      />
+                    )
+                  })}
+                </div>
               </Section>
 
               <Section title="近 30 天记录">
@@ -2531,45 +2910,46 @@ function App() {
             ⏱ {formatSeconds(remainingSeconds)}
           </button>
         ) : (
-        <div className={`floating-timer${showProcessNotes ? ' notes-open' : ''}`}>
-          {showProcessNotes ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span><strong style={{ fontSize: 20 }}>{formatSeconds(remainingSeconds)}</strong> {isBreakTimer ? '休息中' : activeItem?.title ?? '专注中'}</span>
+        <div className="floating-timer">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <span className="muted-label">{isBreakTimer ? '正在休息' : '正在专注'}</span>
+              <strong>{formatSeconds(remainingSeconds)}</strong>
+              <p>{isBreakTimer ? `刚完成：${activeItem?.title ?? '这一轮专注'}` : activeItem?.title ?? '未绑定任务'}</p>
+              <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
+            </div>
+            <button type="button" className="ghost-button" onClick={() => setTimerCollapsed(true)} style={{ fontSize: 18, padding: '2px 8px' }}>−</button>
+          </div>
+          <div className="floating-actions">
+            {isBreakTimer ? (
+              <button type="button" className="ghost-button" onClick={actions.finishBreakTimer}>
+                提前结束休息
+              </button>
+            ) : (
+              <button type="button" className="ghost-button" onClick={() => setFinishOpen(true)}>
+                提前结束并记录
+              </button>
+            )}
+            <button type="button" className="ghost-button danger" onClick={actions.cancelTimer}>
+              {isBreakTimer ? '取消休息' : '取消本轮'}
+            </button>
+          </div>
+        </div>
+        )
+      ) : null}
+
+      {/* 全局过程笔记：任何页面、不依赖番茄钟，一键随时记 */}
+      {!showProcessNotes ? (
+        <button type="button" className="notes-fab" onClick={() => setShowProcessNotes(true)} title="过程笔记" aria-label="过程笔记">
+          📝
+        </button>
+      ) : (
+        <div className="process-notes-overlay" role="dialog" aria-label="过程笔记">
+          <div className="process-notes-sheet">
+            <div className="process-notes-header">
+              <span className="muted-label">📝 过程笔记 · {dayjs(dayKey).format('M 月 D 日')}</span>
               <button type="button" className="ghost-button" onClick={() => setShowProcessNotes(false)}>收起</button>
             </div>
-          ) : (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <span className="muted-label">{isBreakTimer ? '正在休息' : '正在专注'}</span>
-                  <strong>{formatSeconds(remainingSeconds)}</strong>
-                  <p>{isBreakTimer ? `刚完成：${activeItem?.title ?? '这一轮专注'}` : activeItem?.title ?? '未绑定任务'}</p>
-                  <p className="muted">{isBreakTimer ? '先休息，结束后回来继续。' : activeStep?.title ?? '先把眼前这一小步做掉。'}</p>
-                </div>
-                <button type="button" className="ghost-button" onClick={() => setTimerCollapsed(true)} style={{ fontSize: 18, padding: '2px 8px' }}>−</button>
-              </div>
-            </>
-          )}
-          {!showProcessNotes && (
-            <div className="floating-actions">
-              <button type="button" className="ghost-button" onClick={() => setShowProcessNotes(true)}>
-                📝 过程笔记
-              </button>
-              {isBreakTimer ? (
-                <button type="button" className="ghost-button" onClick={actions.finishBreakTimer}>
-                  提前结束休息
-                </button>
-              ) : (
-                <button type="button" className="ghost-button" onClick={() => setFinishOpen(true)}>
-                  提前结束并记录
-                </button>
-              )}
-              <button type="button" className="ghost-button danger" onClick={actions.cancelTimer}>
-                {isBreakTimer ? '取消休息' : '取消本轮'}
-              </button>
-            </div>
-          )}
-          {showProcessNotes ? (
             <div className="process-notes-panel">
               <div
                 key={dayKey}
@@ -2579,7 +2959,6 @@ function App() {
                 suppressContentEditableWarning
                 onInput={(e) => actions.updateProcessNotes((e.target as HTMLDivElement).innerHTML)}
                 dangerouslySetInnerHTML={{ __html: dayPlan.processNotes ?? '' }}
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: 16, flex: 1 }}
                 data-placeholder="随时记录想法、发现、卡点…"
               />
               <div className="notes-toolbar">
@@ -2592,10 +2971,10 @@ function App() {
                   actions.updateProcessNotes(el.innerHTML)
                   requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; el.focus() })
                 }}>+ 新笔记</button>
-                <button type="button" onClick={() => insertNotesMarkdown('\n```\n', '\n```\n', 'code')}>{'</>'}</button>
-                <button type="button" onClick={() => insertNotesMarkdown('`', '`', 'code')}>` `</button>
-                <button type="button" onClick={() => insertNotesMarkdown('**', '**', '粗体')}>B</button>
-                <button type="button" onClick={() => insertNotesMarkdown('- ', '\n', '列表')}>•</button>
+                <button type="button" title="代码块" onClick={() => wrapNoteCode(true)}>{'</>'}</button>
+                <button type="button" title="行内代码" onClick={() => wrapNoteCode(false)}>` `</button>
+                <button type="button" title="加粗" style={{ fontWeight: 700 }} onClick={() => runNoteCommand('bold')}>B</button>
+                <button type="button" title="列表" onClick={() => runNoteCommand('insertUnorderedList')}>•</button>
                 <button type="button" className="color-dot" style={{ background: '#ffffff', border: '1px solid rgba(255,255,255,0.4)' }} onClick={() => applyNoteColor('#ffffff')} title="白色" />
                 <button type="button" className="color-dot" style={{ background: '#dce4ff' }} onClick={() => applyNoteColor('#dce4ff')} title="浅蓝白" />
                 <button type="button" className="color-dot" style={{ background: '#fbbf24' }} onClick={() => applyNoteColor('#fbbf24')} title="黄色" />
@@ -2604,10 +2983,9 @@ function App() {
                 <button type="button" className="color-dot" style={{ background: '#4ade80' }} onClick={() => applyNoteColor('#4ade80')} title="绿色" />
               </div>
             </div>
-          ) : null}
+          </div>
         </div>
-        )
-      ) : null}
+      )}
 
       {finishOpen && activeTimer?.mode === 'focus' ? (
         <div className="modal-backdrop">
@@ -2680,7 +3058,7 @@ function App() {
               <div className="panel-header">
                 <div>
                   <h2>编辑记录</h2>
-                  <p>{entry.title}　{dayjs(entry.happenedAt).format('HH:mm')}</p>
+                  <p>{entry.title}{'　'}{dayjs(entry.happenedAt).format('HH:mm')}</p>
                 </div>
                 <button type="button" className="tiny-button" onClick={() => setEditingTimelineId(null)}>关闭</button>
               </div>

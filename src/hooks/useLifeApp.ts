@@ -383,6 +383,56 @@ export function useLifeApp() {
     }
   }
 
+  const confirmMorningAnchor = (titles: string[]) => {
+    const slots = safeData.dailyTemplate.topTaskSlots
+    const cleaned = titles.map((title) => title.trim()).filter(Boolean).slice(0, Math.max(slots, 0))
+    const now = new Date().toISOString()
+
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const plan = clonePlan(next.dayPlans[dayKey])
+      // 复用任务池机制：每件事建一个正常 taskDef，再放进今天，保持与其它任务一致。
+      const newTasks: TaskDefinition[] = cleaned.map((title) => ({
+        id: createId('task'),
+        title,
+        kind: 'normal',
+        createdAt: now,
+      }))
+      const newItems: TodayItem[] = newTasks.map((task) => ({
+        id: createId('today'),
+        sourceTaskId: task.id,
+        title: task.title,
+        kind: 'normal',
+        isDone: false,
+        order: 0,
+        steps: [],
+        createdAt: now,
+      }))
+
+      return stampData({
+        ...next,
+        taskDefs: [...newTasks, ...next.taskDefs],
+        dayPlans: {
+          ...next.dayPlans,
+          [dayKey]: {
+            ...plan,
+            todayItems: [...plan.todayItems, ...newItems].map((item, index) => ({ ...item, order: index + 1 })),
+            morningAnchorDone: true,
+            morningAnchorAt: now,
+          },
+        },
+      })
+    })
+  }
+
+  const resetMorningAnchor = () => {
+    updateDayPlan((plan) => ({
+      ...plan,
+      morningAnchorDone: false,
+      morningAnchorAt: undefined,
+    }))
+  }
+
   const addTaskToToday = (taskId: string) => {
     const task = safeData.taskDefs.find((item) => item.id === taskId && !item.archived)
     if (!task) return
@@ -742,6 +792,50 @@ export function useLifeApp() {
     }))
   }
 
+  const removeRuleDefinition = (id: string) => {
+    setData((prev) => stampData({
+      ...prev,
+      ruleDefs: prev.ruleDefs.filter((rule) => rule.id !== id),
+    }))
+  }
+
+  const updateRuleDefinition = (id: string, text: string) => {
+    const cleanText = text.trim()
+    if (!cleanText) return
+
+    setData((prev) => stampData({
+      ...prev,
+      ruleDefs: prev.ruleDefs.map((rule) => (rule.id === id ? { ...rule, text: cleanText } : rule)),
+    }))
+  }
+
+  const addCuriosityItem = (text: string) => {
+    const cleanText = text.trim()
+    if (!cleanText) return
+
+    setData((prev) => stampData({
+      ...prev,
+      curiosityItems: [
+        { id: createId('curio'), text: cleanText, createdAt: new Date().toISOString() },
+        ...prev.curiosityItems,
+      ],
+    }))
+  }
+
+  const removeCuriosityItem = (id: string) => {
+    setData((prev) => stampData({
+      ...prev,
+      curiosityItems: prev.curiosityItems.filter((item) => item.id !== id),
+    }))
+  }
+
+  const archiveCuriosityItem = (id: string) => {
+    setData((prev) => stampData({
+      ...prev,
+      curiosityItems: prev.curiosityItems.map((item) => (item.id === id ? { ...item, archived: true } : item)),
+    }))
+  }
+
   const updateDailyTemplate = (payload: Partial<LifeAppData['dailyTemplate']>) => {
     setData((prev) => ({
       ...stampData(prev),
@@ -1055,6 +1149,7 @@ export function useLifeApp() {
   }, [safeData.updatedAt, syncReady])
 
   const pendingTodayItems = dayPlan.todayItems.filter((item) => !item.isDone)
+  const isMorningAnchorPending = !dayPlan.morningAnchorDone
   const todayDifficultyRecords = safeData.difficultyRecords.filter((record) => record.dayKey === dayKey)
   const todayStateRecords = safeData.stateRecords.filter((record) => record.dayKey === dayKey)
   const todayFocusSessions = safeData.focusSessions.filter((session) => session.dayKey === dayKey)
@@ -1064,6 +1159,7 @@ export function useLifeApp() {
     dayKey,
     dayPlan,
     pendingTodayItems,
+    isMorningAnchorPending,
     activeRelaxWindow,
     todayDifficultyRecords,
     todayStateRecords,
@@ -1079,6 +1175,8 @@ export function useLifeApp() {
     actions: {
       addTaskDefinition,
       quickStartTodayTask,
+      confirmMorningAnchor,
+      resetMorningAnchor,
       addTaskToToday,
       launchTaskDefinition,
       removeTaskDefinition,
@@ -1093,6 +1191,11 @@ export function useLifeApp() {
       setCommunication,
       addStateRecord,
       addRuleDefinition,
+      removeRuleDefinition,
+      updateRuleDefinition,
+      addCuriosityItem,
+      removeCuriosityItem,
+      archiveCuriosityItem,
       updateDailyTemplate,
       updateWeeklyTemplate,
       updateSettings,

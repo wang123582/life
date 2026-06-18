@@ -1,5 +1,5 @@
 import { defaultData, ensureDayPlan, purgeOldData, STORAGE_KEY } from './defaults'
-import type { LifeAppData } from '../types'
+import type { DayPlan, LifeAppData } from '../types'
 
 export function loadData(): LifeAppData {
   try {
@@ -12,16 +12,25 @@ export function loadData(): LifeAppData {
     const fallback = defaultData()
     const parsed = JSON.parse(raw) as Partial<LifeAppData>
 
+    const dayPlans: Record<string, DayPlan> = {}
+    for (const [key, plan] of Object.entries(parsed.dayPlans ?? {})) {
+      dayPlans[key] = {
+        ...plan,
+        morningAnchorDone: plan.morningAnchorDone ?? false,
+      }
+    }
+
     const merged = ensureDayPlan({
       ...fallback,
       ...parsed,
       taskDefs: parsed.taskDefs ?? fallback.taskDefs,
       ruleDefs: parsed.ruleDefs ?? fallback.ruleDefs,
-      dayPlans: parsed.dayPlans ?? fallback.dayPlans,
+      dayPlans: parsed.dayPlans ? dayPlans : fallback.dayPlans,
       difficultyRecords: parsed.difficultyRecords ?? fallback.difficultyRecords,
       stateRecords: parsed.stateRecords ?? fallback.stateRecords,
       focusSessions: parsed.focusSessions ?? fallback.focusSessions,
       relaxWindows: parsed.relaxWindows ?? fallback.relaxWindows,
+      curiosityItems: parsed.curiosityItems ?? fallback.curiosityItems,
       dailyTemplate: {
         ...fallback.dailyTemplate,
         ...parsed.dailyTemplate,

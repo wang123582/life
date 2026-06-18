@@ -49,11 +49,20 @@ export interface AvoidItem {
   createdAt: string
 }
 
+export interface CuriosityItem {
+  id: string
+  text: string
+  createdAt: string
+  archived?: boolean
+}
+
 export interface DailyReview {
   wins: string
   slips: string
   commonState: StateType | ''
   tomorrow: string
+  tomorrowTop3?: string[]
+  moodScore?: 1 | 2 | 3 | 4 | 5
   updatedAt: string
 }
 
@@ -65,6 +74,8 @@ export interface DayPlan {
   communicationNote: string
   processNotes: string
   processNotesColor: string
+  morningAnchorDone: boolean
+  morningAnchorAt?: string
   review: DailyReview | null
 }
 
@@ -143,6 +154,13 @@ export interface AppSettings {
   feishuKeyword: string
   feishuSecret: string
   feishuAutoSyncReview: boolean
+  feishuScheduledSyncEnabled: boolean
+  feishuScheduledSyncTime: string
+  feishuLastScheduledSyncDayKey: string
+  reviewReminderEnabled: boolean
+  reviewReminderTime: string
+  hardStopEnabled: boolean
+  hardStopTime: string
 }
 
 export interface ActiveTimer {
@@ -162,6 +180,7 @@ export interface LifeAppData {
   stateRecords: StateRecord[]
   focusSessions: FocusSession[]
   relaxWindows: RelaxWindow[]
+  curiosityItems: CuriosityItem[]
   dailyTemplate: DailyTemplate
   weeklyTemplate: WeeklyTemplate
   settings: AppSettings
@@ -182,4 +201,6 @@ export interface ReviewInput {
   slips: string
   commonState: StateType | ''
   tomorrow: string
+  tomorrowTop3?: string[]
+  moodScore?: 1 | 2 | 3 | 4 | 5
 }

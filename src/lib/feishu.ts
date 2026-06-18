@@ -71,6 +71,19 @@ function createTextLine(text: string): FeishuTextLine {
   return [{ tag: 'text', text }]
 }
 
+/** M3/S3：复盘里"明日三件事 / 情绪评分"的附加行（缺省时不输出）。 */
+export function buildReviewExtraLines(review: DailyReview | null): string[] {
+  const lines: string[] = []
+  const top3 = review?.tomorrowTop3?.map((title) => title.trim()).filter(Boolean) ?? []
+  if (top3.length > 0) {
+    lines.push(`明日三件事：${top3.join('、')}`)
+  }
+  if (review?.moodScore) {
+    lines.push(`今日状态评分：${review.moodScore}/5`)
+  }
+  return lines
+}
+
 function buildParagraphs(payload: FeishuReportPayload): FeishuTextLine[] {
   const keywordPrefix = payload.keyword?.trim() ? `${payload.keyword!.trim()}\n` : ''
   const completedStepLines = payload.completedSteps.length > 0
@@ -91,6 +104,7 @@ function buildParagraphs(payload: FeishuReportPayload): FeishuTextLine[] {
     `今天失守了什么：${review?.slips || '还没写。'}`,
     `今天最常见的状态：${payload.commonStateLabel || '还没选。'}`,
     `明天第一步：${review?.tomorrow || '还没写。'}`,
+    ...buildReviewExtraLines(review),
   ]
 
   return [
@@ -222,6 +236,7 @@ export function buildReportPreviewText(payload: FeishuReportPayload): string {
   lines.push(`失守了什么：${review?.slips || '还没写。'}`)
   lines.push(`最常见的状态：${payload.commonStateLabel || '还没选。'}`)
   lines.push(`明天第一步：${review?.tomorrow || '还没写。'}`)
+  buildReviewExtraLines(review).forEach((line) => lines.push(line))
   lines.push('')
   lines.push('【做完的步骤】')
   if (payload.completedSteps.length > 0) {

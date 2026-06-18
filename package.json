@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "lint": "eslint .",
     "build": "tsc -b && vite build && node ./scripts/write-build-meta.mjs",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android && rm -rf android/app/src/main/assets/public/downloads",
@@ -26,10 +30,22 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
+    "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^4.1.9",
+    "eslint": "^10.5.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5.6.3",
-    "vite": "^5.4.10"
+    "typescript-eslint": "^8.61.1",
+    "vite": "^5.4.10",
+    "vitest": "^4.1.9"
   }
 }

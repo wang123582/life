@@ -124,6 +124,7 @@ npm run android:bundle:release
 - `docs/data-api.md`：数据模型与 API 草案
 - `docs/pages.md`：页面结构与交互说明
 - `docs/PRD.md`：产品需求骨架
+- `docs/detailed-design.md`：按 proposal 模块拆分的详细设计文档
 - `docs/reward-mechanism.md`：放松窗口与奖励机制设计
 
 ## 代码结构

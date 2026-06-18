@@ -123,12 +123,31 @@ export function defaultTaskDefs(): TaskDefinition[] {
 }
 
 export function defaultRuleDefs(): RuleDefinition[] {
+  const now = new Date().toISOString()
   return [
+    {
+      id: createId('rule'),
+      type: 'do',
+      text: '零散兴趣加入"好奇清单"，不在核心任务时段看',
+      createdAt: now,
+    },
+    {
+      id: createId('rule'),
+      type: 'do',
+      text: '遇到难题先独立思考 3 分钟，写下思路再问 AI',
+      createdAt: now,
+    },
+    {
+      id: createId('rule'),
+      type: 'do',
+      text: '感到空转超过 5 分钟 → 立刻打开任务清单',
+      createdAt: now,
+    },
     {
       id: createId('rule'),
       type: 'avoid',
       text: '专注时段不刷短视频',
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     },
   ]
 }
@@ -152,6 +171,7 @@ export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefin
     communicationNote: '',
     processNotes: '',
       processNotesColor: '#1f2937',
+    morningAnchorDone: false,
     review: null,
   }
 }
@@ -171,6 +191,7 @@ export function defaultData(): LifeAppData {
     stateRecords: [],
     focusSessions: [],
     relaxWindows: [],
+    curiosityItems: [],
     dailyTemplate: {
       topTaskSlots: 3,
       routineSlots: 2,
@@ -199,6 +220,13 @@ export function defaultData(): LifeAppData {
       feishuKeyword: '',
       feishuSecret: '',
       feishuAutoSyncReview: false,
+      feishuScheduledSyncEnabled: true,
+      feishuScheduledSyncTime: '12:00',
+      feishuLastScheduledSyncDayKey: '',
+      reviewReminderEnabled: true,
+      reviewReminderTime: '22:30',
+      hardStopEnabled: true,
+      hardStopTime: '23:00',
     },
     activeTimer: null,
   }

@@ -1483,45 +1483,52 @@ button:disabled {
   bottom: 0;
   right: 0;
   width: 100vw;
-  height: 70vh;
-  border-radius: 12px 12px 0 0;
+  height: 78vh;
+  border-radius: 16px 16px 0 0;
   display: flex;
   flex-direction: column;
-  padding: 8px 12px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
 }
 
 .process-notes-panel {
   flex: 1;
   display: flex;
+  flex-direction: column;
   min-height: 0;
-}
-
-.process-notes-panel textarea {
-  resize: none;
+  gap: 10px;
 }
 
 .notes-toolbar {
   display: flex;
-  gap: 4px;
-  padding: 4px 0 0;
+  gap: 8px;
+  padding: 8px 0 0;
   flex-shrink: 0;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .notes-toolbar button {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.5);
-  border-radius: 4px;
-  padding: 1px 7px;
-  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.78);
+  border-radius: 8px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 6px 12px;
+  font-size: 14px;
   cursor: pointer;
-  line-height: 1.4;
+  line-height: 1.2;
+  transition: background 0.15s ease;
+}
+
+.notes-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .notes-toolbar button:active {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .floating-actions {
@@ -2161,25 +2168,61 @@ button:disabled {
 }
 
 .notes-toolbar .color-dot {
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   padding: 0;
 }
 .notes-editable {
+  flex: 1;
+  width: 100%;
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-y: auto;
   color: #dce4ff;
   caret-color: #bcc7ff;
-  min-height: 80px;
+  min-height: 120px;
+  /* 16px 避免移动端聚焦时自动放大 */
+  font-size: 16px;
+  line-height: 1.7;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 12px 14px;
+  background: rgba(11, 16, 32, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  -webkit-overflow-scrolling: touch;
 }
 .notes-editable:empty::before {
   content: attr(data-placeholder);
   color: rgba(255, 255, 255, 0.3);
   pointer-events: none;
+}
+/* 富文本元素：加粗 / 列表 / 行内代码 / 代码块 */
+.notes-editable code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.92em;
+}
+.notes-editable pre {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.notes-editable pre code {
+  background: none;
+  padding: 0;
+}
+.notes-editable ul {
+  margin: 6px 0;
+  padding-left: 22px;
 }
 .history-notes-content {
   white-space: pre-wrap;
@@ -2190,4 +2233,235 @@ button:disabled {
   max-height: 200px;
   overflow-y: auto;
   color: #dce4ff;
+}
+
+/* ===== proposal 模块新增样式（M1/M2/M3/M4/M5） ===== */
+
+/* M5 核心原则 */
+.principles-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  color: #dce4ff;
+}
+.principles-list li {
+  line-height: 1.6;
+}
+
+/* M1 今日三件事锚点 */
+.morning-anchor-section {
+  border: 1px solid rgba(95, 117, 255, 0.35);
+}
+.morning-anchor-summary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.morning-anchor-summary li {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(27, 35, 65, 0.6);
+  color: #e7ecff;
+}
+.morning-anchor-summary li.done {
+  color: #88e0b4;
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+/* 导航锁定 */
+.nav-button-locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* M2 执行守则 + 好奇清单 */
+.guideline-list {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  color: #dce4ff;
+}
+.curiosity-box {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.inline-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inline-row input {
+  flex: 1;
+}
+.curiosity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.curiosity-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(27, 35, 65, 0.55);
+}
+.curiosity-list li span {
+  flex: 1;
+  color: #e7ecff;
+}
+
+/* M3 复盘：今日/明日三件事 + 情绪评分 */
+.review-today-top3 ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.review-today-top3 li {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(27, 35, 65, 0.5);
+  color: #e7ecff;
+}
+.review-today-top3 li.done {
+  color: #88e0b4;
+}
+.review-tomorrow-top3 {
+  display: grid;
+  gap: 8px;
+}
+.mood-scale {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.mood-dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(27, 35, 65, 0.6);
+  color: #aab4d4;
+  font-size: 16px;
+  cursor: pointer;
+}
+.mood-dot.active {
+  background: linear-gradient(180deg, rgba(79, 157, 255, 0.95), rgba(88, 224, 180, 0.85));
+  color: #0b1020;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+/* M4 进度可视化 */
+.progress-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.progress-heatmap {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 5px;
+}
+.heatmap-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.heatmap-level-1 { background: rgba(88, 224, 180, 0.3); }
+.heatmap-level-2 { background: rgba(88, 224, 180, 0.6); }
+.heatmap-level-3 { background: rgba(88, 224, 180, 0.95); }
+
+/* ===== 易用性优化：全局过程笔记 + 可折叠卡片 ===== */
+
+/* 常驻笔记按钮（所有页面、不依赖番茄钟） */
+.notes-fab {
+  position: fixed;
+  left: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 60;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(27, 35, 65, 0.95), rgba(17, 24, 44, 0.95));
+  color: #f5f7fb;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.notes-fab:hover {
+  background: rgba(40, 52, 90, 0.95);
+}
+
+/* 笔记底部抽屉 */
+.process-notes-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(4, 7, 16, 0.55);
+}
+.process-notes-sheet {
+  width: 100%;
+  max-width: 760px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #11182c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px 16px 0 0;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+}
+.process-notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+/* 可折叠卡片（今天页"执行守则 & 好奇清单"） */
+.collapsible-card > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #e7ecff;
+}
+.collapsible-card > summary::-webkit-details-marker {
+  display: none;
+}
+.collapsible-card > summary > :first-child {
+  flex: 1;
+}
+/* 折叠版 Section：让内部 panel-header 不再额外占边距 */
+.collapsible-section > summary .panel-header {
+  margin: 0;
+}
+.collapsible-card > summary::after {
+  content: '▾';
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform 0.2s ease;
+}
+.collapsible-card[open] > summary {
+  margin-bottom: 12px;
+}
+.collapsible-card[open] > summary::after {
+  transform: rotate(180deg);
 }
