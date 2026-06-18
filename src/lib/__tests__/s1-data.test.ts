@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import dayjs from 'dayjs'
-import { defaultData, purgeOldData, STORAGE_KEY } from '../defaults'
+import { defaultData, pruneEmptyDays, STORAGE_KEY } from '../defaults'
 import { loadData } from '../storage'
-import type { LifeAppData } from '../../types'
+import type { DayPlan, LifeAppData } from '../../types'
 
 afterEach(() => {
   window.localStorage.clear()
@@ -86,25 +86,60 @@ describe('S1 loadData backward compatibility', () => {
   })
 })
 
-describe('S1 purgeOldData', () => {
-  it('keeps only the last 30 days and preserves new fields', () => {
-    const recent = dayjs().format('YYYY-MM-DD')
-    const old = dayjs().subtract(45, 'day').format('YYYY-MM-DD')
-    const base = defaultData()
+describe('S1 pruneEmptyDays', () => {
+  const today = dayjs().format('YYYY-MM-DD')
+  const base = defaultData()
+  const blankPlan = (key: string): DayPlan => ({
+    ...base.dayPlans[today],
+    dayKey: key,
+    todayItems: [],
+    avoidItems: [],
+    communicationDone: false,
+    communicationNote: '',
+    processNotes: '',
+    morningAnchorDone: false,
+    review: null,
+  })
+
+  it('keeps record-days at any age and today, drops empty days', () => {
+    const oldWithRecord = dayjs().subtract(120, 'day').format('YYYY-MM-DD')
+    const emptyOld = dayjs().subtract(3, 'day').format('YYYY-MM-DD')
+
     const data: LifeAppData = {
       ...base,
       curiosityItems: [{ id: 'c1', text: 'keep me', createdAt: new Date().toISOString() }],
       dayPlans: {
-        ...base.dayPlans,
-        [old]: { ...base.dayPlans[recent], dayKey: old },
+        [today]: base.dayPlans[today],
+        [oldWithRecord]: {
+          ...blankPlan(oldWithRecord),
+          review: { wins: '做完了', slips: '', commonState: '', tomorrow: '', updatedAt: new Date().toISOString() },
+        },
+        [emptyOld]: blankPlan(emptyOld),
       },
     }
 
-    const purged = purgeOldData(data)
+    const pruned = pruneEmptyDays(data, today)
 
-    expect(purged.dayPlans[old]).toBeUndefined()
-    expect(purged.dayPlans[recent]).toBeDefined()
-    // new top-level field untouched by purge
-    expect(purged.curiosityItems).toHaveLength(1)
+    expect(pruned.dayPlans[oldWithRecord]).toBeDefined() // 有记录：不论多久都保留
+    expect(pruned.dayPlans[emptyOld]).toBeUndefined() // 空白天：自动删除
+    expect(pruned.dayPlans[today]).toBeDefined() // 今天：始终保留
+    expect(pruned.curiosityItems).toHaveLength(1) // 顶层字段不受影响
+  })
+
+  it('treats a finished task / focus session / notes as a record', () => {
+    const d1 = dayjs().subtract(10, 'day').format('YYYY-MM-DD')
+    const d2 = dayjs().subtract(11, 'day').format('YYYY-MM-DD')
+    const data: LifeAppData = {
+      ...base,
+      focusSessions: [{ id: 'f', dayKey: d2, mode: 'focus', startedAt: '', endedAt: '', plannedMinutes: 25, status: 'completed' }],
+      dayPlans: {
+        [today]: base.dayPlans[today],
+        [d1]: { ...blankPlan(d1), processNotes: '记了一笔' },
+        [d2]: blankPlan(d2),
+      },
+    }
+    const pruned = pruneEmptyDays(data, today)
+    expect(pruned.dayPlans[d1]).toBeDefined() // 有笔记
+    expect(pruned.dayPlans[d2]).toBeDefined() // 有番茄记录
   })
 })

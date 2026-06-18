@@ -1,4 +1,4 @@
-import { defaultData, ensureDayPlan, purgeOldData, STORAGE_KEY } from './defaults'
+import { defaultData, ensureDayPlan, pruneEmptyDays, STORAGE_KEY } from './defaults'
 import type { DayPlan, LifeAppData } from '../types'
 
 export function loadData(): LifeAppData {
@@ -45,7 +45,7 @@ export function loadData(): LifeAppData {
       },
       activeTimer: parsed.activeTimer ?? fallback.activeTimer,
     })
-    return purgeOldData(merged)
+    return pruneEmptyDays(merged)
   } catch {
     return defaultData()
   }

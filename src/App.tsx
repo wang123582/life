@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import { playAlarmSound, playReminderSound } from './lib/alarm'
-import { difficultyTemplateLabels, encouragementMessages, presetInterventions, stateTemplateLabels } from './lib/defaults'
+import { dayPlanHasRecord, difficultyTemplateLabels, encouragementMessages, presetInterventions, stateTemplateLabels } from './lib/defaults'
 import { buildTodayTimeline, getStateLabel, sendFeishuConnectionTest, buildReportPreviewText, sendFeishuPlainText } from './lib/feishu'
 import { canUseFocusLock, getFocusLockStatus, openFocusLockAccessibilitySettings, saveFocusLockConfig } from './lib/focusLock'
 import {
@@ -763,11 +763,10 @@ function App() {
     () => buildTodayTimeline({ completedSteps, difficulties: todayDifficultyRecords, focusSessions: todayFocusSessions }).slice(0, 12),
     [completedSteps, todayDifficultyRecords, todayFocusSessions],
   )
-  const historyCutoffKey = useMemo(() => dayjs(dayKey).subtract(29, 'day').format('YYYY-MM-DD'), [dayKey])
   const historyDays = useMemo(
     () =>
       Object.entries(data.dayPlans)
-        .filter(([key]) => key >= historyCutoffKey && key <= dayKey)
+        .filter(([key]) => key <= dayKey && dayPlanHasRecord(data, key))
         .sort(([a], [b]) => (a > b ? -1 : 1))
         .map(([key, plan]) => ({
           key,
@@ -775,7 +774,7 @@ function App() {
           dayDifficulties: data.difficultyRecords.filter((r) => r.dayKey === key),
           daySessions: data.focusSessions.filter((s) => s.dayKey === key),
         })),
-    [data.dayPlans, data.difficultyRecords, data.focusSessions, dayKey, historyCutoffKey],
+    [data, dayKey],
   )
   const filteredHistoryDays = useMemo(() => {
     const query = historyQuery.trim().toLowerCase()
@@ -2903,9 +2902,9 @@ function App() {
                 </div>
               </Section>
 
-              <Section title="近 30 天记录">
+              <Section title="历史记录" subtitle="保留所有有记录的日子，空白天会自动清掉。">
                 <button type="button" className="secondary-button" onClick={() => setShowHistory((v) => !v)}>
-                  {showHistory ? '收起历史' : '查看近 30 天写了什么'}
+                  {showHistory ? '收起历史' : `查看全部历史（${historyDays.length} 天有记录）`}
                 </button>
                 {showHistory ? (
                   <div className="history-panel">

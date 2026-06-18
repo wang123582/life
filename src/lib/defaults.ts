@@ -248,21 +248,45 @@ export function ensureDayPlan(data: LifeAppData, dayKey = currentDayKey()): Life
   }
 }
 
-/** Remove data older than 30 days */
-export function purgeOldData(data: LifeAppData): LifeAppData {
-  const cutoff = dayjs().subtract(30, 'day').format('YYYY-MM-DD')
+/**
+ * 判断某一天是否有"真实记录"（用户当天确实做过/记过事），
+ * 用于历史展示与自动清理空白天。自动生成的固定提醒、截止任务（未操作）不算记录。
+ */
+export function dayPlanHasRecord(data: LifeAppData, dayKey: string): boolean {
+  const plan = data.dayPlans[dayKey]
+  if (!plan) return false
 
+  if (plan.review) return true
+  if (plan.processNotes?.trim()) return true
+  if (plan.morningAnchorDone) return true
+  if (plan.communicationDone || plan.communicationNote?.trim()) return true
+  if (plan.avoidItems.length > 0) return true
+  if (plan.todayItems.some((item) => item.isDone || item.steps.some((step) => step.isDone))) return true
+
+  if (data.difficultyRecords.some((record) => record.dayKey === dayKey)) return true
+  if (data.stateRecords.some((record) => record.dayKey === dayKey)) return true
+  if (data.focusSessions.some((session) => session.dayKey === dayKey)) return true
+
+  return false
+}
+
+/**
+ * 自动清理"没有记录"的空白天：保留今天与所有有记录的天（不再按 30 天上限删除），
+ * 这样历史可以一直往回看，而空白天会被自动删掉。
+ */
+export function pruneEmptyDays(data: LifeAppData, today = currentDayKey()): LifeAppData {
   const dayPlans: Record<string, DayPlan> = {}
   for (const [key, plan] of Object.entries(data.dayPlans)) {
-    if (key >= cutoff) dayPlans[key] = plan
+    if (key === today || dayPlanHasRecord(data, key)) {
+      dayPlans[key] = plan
+    }
   }
 
+  const keptKeys = new Set(Object.keys(dayPlans))
   return {
     ...data,
     dayPlans,
-    difficultyRecords: data.difficultyRecords.filter((r) => r.dayKey >= cutoff),
-    stateRecords: data.stateRecords.filter((r) => r.dayKey >= cutoff),
-    focusSessions: data.focusSessions.filter((s) => s.dayKey >= cutoff),
-    relaxWindows: data.relaxWindows.filter((w) => w.dayKey >= cutoff),
+    // 被删掉的空白天不会有困难/状态/番茄记录，所以这些数组无需再过滤；只清理对应的放松窗口。
+    relaxWindows: data.relaxWindows.filter((window) => keptKeys.has(window.dayKey)),
   }
 }
