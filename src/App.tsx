@@ -744,13 +744,14 @@ function App() {
 
     setQuickStartTitle('')
     setSelectedItemId(created.todayItemId)
+    setExpandedTaskId(created.todayItemId)
 
-    if (isMobileLayout) {
-      setExpandedTaskId(created.todayItemId)
-    }
+    requestAnimationFrame(() => {
+      document.querySelector('.today-tasks-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
 
     setFlashTone('success')
-    setFlashMessage('已经放进今天。现在只要点开它，继续下一步就行。')
+    setFlashMessage('已经放进今天。给它拆个第一步就能开始。')
   }
 
   const handleAddTaskDefinition = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1496,15 +1497,23 @@ function App() {
                       className="primary-button"
                       disabled={!anchorInputs.some((text) => text && text.trim())}
                       onClick={() => {
-                        actions.confirmMorningAnchor(anchorInputs)
+                        const ids = actions.confirmMorningAnchor(anchorInputs)
                         setAnchorInputs([])
+                        const firstId = ids[0]
+                        if (firstId) {
+                          setSelectedItemId(firstId)
+                          setExpandedTaskId(firstId)
+                        }
+                        requestAnimationFrame(() => {
+                          document.querySelector('.today-tasks-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        })
                       }}
                     >
-                      确认今天就做这三件
+                      确认，去拆第一步
                     </button>
                   </div>
                 ) : (
-                  <p className="muted anchor-confirmed">今天三件事已经定好，去下面「今天要做什么」推进就行。</p>
+                  <p className="muted anchor-confirmed">今天三件事已经定好。下面给每件事拆出第一步，就能直接开始。</p>
                 )}
               </Section>
 

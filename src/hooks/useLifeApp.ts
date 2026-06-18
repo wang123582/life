@@ -383,46 +383,49 @@ export function useLifeApp() {
     }
   }
 
-  const confirmMorningAnchor = (titles: string[]) => {
+  const confirmMorningAnchor = (titles: string[]): string[] => {
     const slots = safeData.dailyTemplate.topTaskSlots
     const cleaned = titles.map((title) => title.trim()).filter(Boolean).slice(0, Math.max(slots, 0))
     const now = new Date().toISOString()
 
-    setData((prev) => {
-      const next = ensureDayPlan(prev, dayKey)
-      const plan = clonePlan(next.dayPlans[dayKey])
-      // 复用任务池机制：每件事建一个正常 taskDef，再放进今天，保持与其它任务一致。
-      const newTasks: TaskDefinition[] = cleaned.map((title) => ({
-        id: createId('task'),
-        title,
-        kind: 'normal',
-        createdAt: now,
-      }))
-      const newItems: TodayItem[] = newTasks.map((task) => ({
+    // 复用任务池机制：每件事建一个正常 taskDef，再放进今天，保持与其它任务一致。
+    // 先在外面建好，便于把新任务的 todayItem id 返回给 UI（确认后直接跳到拆解阶段）。
+    const created = cleaned.map((title) => {
+      const taskId = createId('task')
+      const task: TaskDefinition = { id: taskId, title, kind: 'normal', createdAt: now }
+      const item: TodayItem = {
         id: createId('today'),
-        sourceTaskId: task.id,
-        title: task.title,
+        sourceTaskId: taskId,
+        title,
         kind: 'normal',
         isDone: false,
         order: 0,
         steps: [],
         createdAt: now,
-      }))
+      }
+      return { task, item }
+    })
+
+    setData((prev) => {
+      const next = ensureDayPlan(prev, dayKey)
+      const plan = clonePlan(next.dayPlans[dayKey])
 
       return stampData({
         ...next,
-        taskDefs: [...newTasks, ...next.taskDefs],
+        taskDefs: [...created.map((entry) => entry.task), ...next.taskDefs],
         dayPlans: {
           ...next.dayPlans,
           [dayKey]: {
             ...plan,
-            todayItems: [...plan.todayItems, ...newItems].map((item, index) => ({ ...item, order: index + 1 })),
+            todayItems: [...plan.todayItems, ...created.map((entry) => entry.item)].map((item, index) => ({ ...item, order: index + 1 })),
             morningAnchorDone: true,
             morningAnchorAt: now,
           },
         },
       })
     })
+
+    return created.map((entry) => entry.item.id)
   }
 
   const resetMorningAnchor = () => {
