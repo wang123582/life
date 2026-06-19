@@ -32,11 +32,11 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 
 // 界面主题预设：每套 = 背景底色 + 强调色（accent / accent-2），与 index.css 的 [data-theme] 对应。
 const THEMES: Array<{ id: string; label: string; accent: string; accent2: string; bg: string }> = [
-  { id: 'default', label: '深蓝', accent: '#4f72ff', accent2: '#7b61ff', bg: '#0c0f1a' },
-  { id: 'ocean', label: '海青', accent: '#0ea5e9', accent2: '#06b6d4', bg: '#0a1320' },
-  { id: 'forest', label: '森绿', accent: '#22c55e', accent2: '#14b8a6', bg: '#0b1512' },
-  { id: 'warm', label: '暖橙', accent: '#fb923c', accent2: '#f59e0b', bg: '#161009' },
-  { id: 'violet', label: '紫粉', accent: '#a855f7', accent2: '#ec4899', bg: '#140e1c' },
+  { id: 'default', label: '深蓝', accent: '#5b7cfa', accent2: '#8b6cff', bg: '#0f1320' },
+  { id: 'ocean', label: '海青', accent: '#38bdf8', accent2: '#22d3ee', bg: '#0a1a23' },
+  { id: 'forest', label: '森绿', accent: '#34d399', accent2: '#22c55e', bg: '#0c1813' },
+  { id: 'warm', label: '暖橙', accent: '#fb923c', accent2: '#f59e0b', bg: '#1b1407' },
+  { id: 'violet', label: '紫粉', accent: '#c084fc', accent2: '#f472b6', bg: '#16101f' },
 ]
 
 // 过程笔记取色盘：取自 Tailwind 400 级配色，深色背景上清晰且协调。

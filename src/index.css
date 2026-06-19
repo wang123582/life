@@ -2555,15 +2555,18 @@ button:disabled {
 }
 
 /* ===== 界面主题（多套预设，由 <html data-theme> 切换） ===== */
+/* 每套主题：clearly-colored 但低饱和的暗色背景 + 逐级提亮的同色相表面（参考 Radix 暗色阶） */
 :root {
-  --accent: #4f72ff;
-  --accent-2: #7b61ff;
-  --app-bg: #0c0f1a;
+  --accent: #5b7cfa;
+  --accent-2: #8b6cff;
+  --app-bg: #0f1320;
+  --surface: #181d2b;
+  --surface-2: #1f2536;
 }
-[data-theme="ocean"]  { --accent: #0ea5e9; --accent-2: #06b6d4; --app-bg: #0a1320; }
-[data-theme="forest"] { --accent: #22c55e; --accent-2: #14b8a6; --app-bg: #0b1512; }
-[data-theme="warm"]   { --accent: #fb923c; --accent-2: #f59e0b; --app-bg: #161009; }
-[data-theme="violet"] { --accent: #a855f7; --accent-2: #ec4899; --app-bg: #140e1c; }
+[data-theme="ocean"]  { --accent: #38bdf8; --accent-2: #22d3ee; --app-bg: #0a1a23; --surface: #123040; --surface-2: #16394c; }
+[data-theme="forest"] { --accent: #34d399; --accent-2: #22c55e; --app-bg: #0c1813; --surface: #16271d; --surface-2: #1c3225; }
+[data-theme="warm"]   { --accent: #fb923c; --accent-2: #f59e0b; --app-bg: #1b1407; --surface: #2a2010; --surface-2: #332815; }
+[data-theme="violet"] { --accent: #c084fc; --accent-2: #f472b6; --app-bg: #16101f; --surface: #231a31; --surface-2: #2b203c; }
 
 /* 用变量接管关键强调色与背景，实现整套主题切换 */
 body { background: var(--app-bg); }
@@ -2607,51 +2610,72 @@ body { background: var(--app-bg); }
   border: 2px solid;
 }
 
-/* ===== 整体染色：面板/侧栏/顶栏/光晕跟随主题强调色 ===== */
+/* ===== 视觉降噪：中性低饱和表面（参考 Linear / Vercel / Radix 深色），强调色只点缀小元素 ===== */
+/* 大面积表面回归中性深色、不再整体染色；只保留细边框与微弱层次，减轻眼睛负担 */
 .sidebar {
-  background: color-mix(in srgb, var(--accent) 10%, #0a0d18);
-  border-right-color: color-mix(in srgb, var(--accent) 20%, rgba(255, 255, 255, 0.06));
+  background: var(--app-bg);
+  border-right-color: rgba(255, 255, 255, 0.06);
 }
 .nav-list {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 .sidebar-card,
 .panel,
-.summary-card,
 .task-card,
 .relax-card,
 .floating-timer,
 .modal,
 .process-notes-sheet,
 .info-details {
-  background: color-mix(in srgb, var(--accent) 9%, #0f1626);
-  border-color: color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.06));
+  background: var(--surface);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
 }
+.summary-card {
+  background: var(--surface-2);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+}
+/* 当前任务用一条克制的强调色细条做焦点，而不是大面积填色 */
 .task-card {
-  border-left-color: var(--accent);
+  border-left-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.morning-anchor-section {
+  border-color: color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.07));
 }
 
 @media (min-width: 1025px) {
   .sidebar {
-    background:
-      radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 26%, transparent), transparent 40%),
-      color-mix(in srgb, var(--accent) 11%, #0a0d18);
+    background: var(--app-bg);
+    box-shadow: none;
   }
-  .topbar {
-    background:
-      radial-gradient(circle at top right, color-mix(in srgb, var(--accent-2) 24%, transparent), transparent 42%),
-      color-mix(in srgb, var(--accent) 11%, #10162b);
-  }
+  .topbar,
   .panel {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 13%, #121830), color-mix(in srgb, var(--accent) 6%, #0c1120));
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   }
   .summary-card {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, #161d3a), color-mix(in srgb, var(--accent) 8%, #111830));
+    background: var(--surface-2);
   }
-  .app-shell::before {
-    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 72%);
-  }
+  /* 去掉大面积彩色光晕与厚重投影，明显降低视觉噪声 */
+  .app-shell::before,
   .app-shell::after {
-    background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 18%, transparent) 0%, transparent 76%);
+    display: none;
+  }
+  .feedback-strip,
+  .context-reminder,
+  .goal-banner,
+  .focus-strip,
+  .quick-start-card,
+  .sync-summary-card,
+  .settings-basics-card,
+  .side-summary-card,
+  .info-details {
+    box-shadow: none;
+  }
+  /* 只在汇总卡顶部保留一条细强调色带，作为唯一的彩色点缀 */
+  .summary-card::after {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
   }
 }
