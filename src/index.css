@@ -2606,3 +2606,52 @@ body { background: var(--app-bg); }
   border-radius: 10px;
   border: 2px solid;
 }
+
+/* ===== 整体染色：面板/侧栏/顶栏/光晕跟随主题强调色 ===== */
+.sidebar {
+  background: color-mix(in srgb, var(--accent) 10%, #0a0d18);
+  border-right-color: color-mix(in srgb, var(--accent) 20%, rgba(255, 255, 255, 0.06));
+}
+.nav-list {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.sidebar-card,
+.panel,
+.summary-card,
+.task-card,
+.relax-card,
+.floating-timer,
+.modal,
+.process-notes-sheet,
+.info-details {
+  background: color-mix(in srgb, var(--accent) 9%, #0f1626);
+  border-color: color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.06));
+}
+.task-card {
+  border-left-color: var(--accent);
+}
+
+@media (min-width: 1025px) {
+  .sidebar {
+    background:
+      radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 26%, transparent), transparent 40%),
+      color-mix(in srgb, var(--accent) 11%, #0a0d18);
+  }
+  .topbar {
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--accent-2) 24%, transparent), transparent 42%),
+      color-mix(in srgb, var(--accent) 11%, #10162b);
+  }
+  .panel {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 13%, #121830), color-mix(in srgb, var(--accent) 6%, #0c1120));
+  }
+  .summary-card {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, #161d3a), color-mix(in srgb, var(--accent) 8%, #111830));
+  }
+  .app-shell::before {
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 72%);
+  }
+  .app-shell::after {
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 18%, transparent) 0%, transparent 76%);
+  }
+}
