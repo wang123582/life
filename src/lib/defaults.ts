@@ -206,6 +206,7 @@ export function defaultData(): LifeAppData {
       restPlan: '按时吃饭，至少留一个完整放松窗口。',
     },
     settings: {
+      theme: 'default',
       focusMinutes: 25,
       breakMinutes: 5,
       desktopNotificationsEnabled: true,

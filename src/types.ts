@@ -140,6 +140,7 @@ export interface WeeklyTemplate {
 }
 
 export interface AppSettings {
+  theme: string
   focusMinutes: number
   breakMinutes: number
   desktopNotificationsEnabled: boolean

@@ -30,6 +30,15 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'templates', label: '设置' },
 ]
 
+// 界面主题预设：每套 = 背景底色 + 强调色（accent / accent-2），与 index.css 的 [data-theme] 对应。
+const THEMES: Array<{ id: string; label: string; accent: string; accent2: string; bg: string }> = [
+  { id: 'default', label: '深蓝', accent: '#4f72ff', accent2: '#7b61ff', bg: '#0c0f1a' },
+  { id: 'ocean', label: '海青', accent: '#0ea5e9', accent2: '#06b6d4', bg: '#0a1320' },
+  { id: 'forest', label: '森绿', accent: '#22c55e', accent2: '#14b8a6', bg: '#0b1512' },
+  { id: 'warm', label: '暖橙', accent: '#fb923c', accent2: '#f59e0b', bg: '#161009' },
+  { id: 'violet', label: '紫粉', accent: '#a855f7', accent2: '#ec4899', bg: '#140e1c' },
+]
+
 // 过程笔记取色盘：取自 Tailwind 400 级配色，深色背景上清晰且协调。
 const NOTE_COLORS: Array<{ label: string; value: string; border?: boolean }> = [
   { label: '白', value: '#ffffff', border: true },
@@ -128,6 +137,11 @@ function App() {
   const { data, dayKey, dayPlan, pendingTodayItems, isMorningAnchorPending, activeRelaxWindow, todayDifficultyRecords, todayStateRecords, todayFocusSessions, sync, actions } =
     useLifeApp()
   const [activeTab, setActiveTab] = useState<TabKey>('today')
+
+  // 界面主题：把当前主题写到 <html data-theme>，由 index.css 的 [data-theme] 接管配色。
+  useEffect(() => {
+    document.documentElement.dataset.theme = data.settings.theme || 'default'
+  }, [data.settings.theme])
 
   // M1 硬阻断：未确认"今日三件事"前，强制停留在今天页，不允许进入其它 Tab。
   useEffect(() => {
@@ -2389,6 +2403,25 @@ function App() {
                     <li key={principle}>{principle}</li>
                   ))}
                 </ol>
+              </Section>
+              <Section className="theme-section" title="界面主题" subtitle="选一套配色，立即应用到整个界面。">
+                <div className="theme-picker">
+                  {THEMES.map((theme) => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      className={data.settings.theme === theme.id ? 'theme-swatch active' : 'theme-swatch'}
+                      onClick={() => actions.updateSettings({ theme: theme.id })}
+                      aria-pressed={data.settings.theme === theme.id}
+                    >
+                      <span
+                        className="theme-swatch-preview"
+                        style={{ background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent2})`, borderColor: theme.bg }}
+                      />
+                      <span>{theme.label}</span>
+                    </button>
+                  ))}
+                </div>
               </Section>
               <Section title="核心设置" subtitle="大多数时候只要把今天任务控制少一点，别一上来改一堆选项。">
                 <div className="stack-form">

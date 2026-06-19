@@ -2553,3 +2553,56 @@ button:disabled {
 .collapsible-card[open] > summary::after {
   transform: rotate(180deg);
 }
+
+/* ===== 界面主题（多套预设，由 <html data-theme> 切换） ===== */
+:root {
+  --accent: #4f72ff;
+  --accent-2: #7b61ff;
+  --app-bg: #0c0f1a;
+}
+[data-theme="ocean"]  { --accent: #0ea5e9; --accent-2: #06b6d4; --app-bg: #0a1320; }
+[data-theme="forest"] { --accent: #22c55e; --accent-2: #14b8a6; --app-bg: #0b1512; }
+[data-theme="warm"]   { --accent: #fb923c; --accent-2: #f59e0b; --app-bg: #161009; }
+[data-theme="violet"] { --accent: #a855f7; --accent-2: #ec4899; --app-bg: #140e1c; }
+
+/* 用变量接管关键强调色与背景，实现整套主题切换 */
+body { background: var(--app-bg); }
+.primary-button { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+.section-kicker { color: var(--accent); }
+.nav-button.active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: #f5f7fb; }
+.mood-dot.active { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color: #0b1020; border-color: transparent; }
+.heatmap-level-1 { background: color-mix(in srgb, var(--accent-2) 30%, transparent); }
+.heatmap-level-2 { background: color-mix(in srgb, var(--accent-2) 60%, transparent); }
+.heatmap-level-3 { background: var(--accent-2); }
+.notes-fab { border-color: color-mix(in srgb, var(--accent) 50%, rgba(255, 255, 255, 0.16)); }
+.morning-anchor-section { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+@media (min-width: 1025px) {
+  .nav-button.active { box-shadow: 0 18px 40px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .summary-card::after { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+}
+
+/* 主题选择器 */
+.theme-picker { display: flex; flex-wrap: wrap; gap: 12px; }
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #dce4ff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.theme-swatch.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.theme-swatch-preview {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 2px solid;
+}
