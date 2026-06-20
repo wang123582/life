@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { getAnchorPrefillFromReview, isValidMoodScore } from '../review'
-import type { DailyReview } from '../../types'
+import { getAnchorPrefillFromReview, getNextDayAnchorPrefill, isValidMoodScore } from '../review'
+import type { DailyReview, DayPlan } from '../../types'
 
 function makeReview(partial: Partial<DailyReview>): DailyReview {
   return {
@@ -23,6 +23,37 @@ describe('M3 getAnchorPrefillFromReview', () => {
     expect(getAnchorPrefillFromReview(null)).toEqual([])
     expect(getAnchorPrefillFromReview(undefined)).toEqual([])
     expect(getAnchorPrefillFromReview(makeReview({}))).toEqual([])
+  })
+})
+
+describe('M3 getNextDayAnchorPrefill', () => {
+  const planWith = (dayKey: string, tomorrowTop3?: string[]): DayPlan => ({
+    dayKey,
+    todayItems: [],
+    avoidItems: [],
+    communicationDone: false,
+    communicationNote: '',
+    processNotes: '',
+    processNotesColor: '#1f2937',
+    morningAnchorDone: false,
+    review: tomorrowTop3 ? makeReview({ tomorrowTop3 }) : null,
+  })
+
+  it('returns the most recent past review tomorrowTop3, skipping empty days', () => {
+    const dayPlans: Record<string, DayPlan> = {
+      '2026-06-15': planWith('2026-06-15', ['旧的一件']),
+      '2026-06-17': planWith('2026-06-17', ['写方案', '健身', '回邮件']), // 最近一次写过
+      '2026-06-18': planWith('2026-06-18'), // 昨天没写明日三件事
+    }
+    expect(getNextDayAnchorPrefill(dayPlans, '2026-06-19')).toEqual(['写方案', '健身', '回邮件'])
+  })
+
+  it('returns [] when no past day has tomorrowTop3', () => {
+    const dayPlans: Record<string, DayPlan> = {
+      '2026-06-18': planWith('2026-06-18'),
+      '2026-06-19': planWith('2026-06-19', ['今天的，不该被自己取用']),
+    }
+    expect(getNextDayAnchorPrefill(dayPlans, '2026-06-19')).toEqual([])
   })
 })
 

@@ -17,6 +17,7 @@ import {
 } from './lib/mobileTimer'
 import { CORE_PRINCIPLES } from './lib/principles'
 import { buildProgressSummary } from './lib/stats'
+import { getNextDayAnchorPrefill } from './lib/review'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
 import { createSyncSpaceId, isSyncEnvReady, syncSetupSql } from './lib/sync'
 import { useLifeApp } from './hooks/useLifeApp'
@@ -166,6 +167,18 @@ function App() {
       return next
     })
   }
+  // 昨晚（最近一次有记录的复盘）写下的「明日三件事」，用来预填今天的晨间锚点。
+  const anchorPrefill = useMemo(() => getNextDayAnchorPrefill(data.dayPlans, dayKey), [data.dayPlans, dayKey])
+  const anchorPrefilledDayRef = useRef('')
+  useEffect(() => {
+    // 进入"待确认"状态时，用昨晚写好的明日三件事预填一次（每天只填一次，不覆盖手动修改）。
+    if (isMorningAnchorPending && anchorPrefilledDayRef.current !== dayKey) {
+      anchorPrefilledDayRef.current = dayKey
+      if (anchorPrefill.length > 0) {
+        setAnchorInputs([...anchorPrefill])
+      }
+    }
+  }, [isMorningAnchorPending, dayKey, anchorPrefill])
   const [curiosityInput, setCuriosityInput] = useState('')
   const progressSummary = useMemo(() => buildProgressSummary(data, 30), [data])
   const [taskTitle, setTaskTitle] = useState('')
@@ -1574,10 +1587,18 @@ function App() {
               <Section
                 className="morning-anchor-section"
                 kicker="今日三件事"
-                title={isMorningAnchorPending ? '先定今天三件事' : '今天三件事'}
+                title={
+                  isMorningAnchorPending
+                    ? anchorPrefill.length > 0
+                      ? '确认今天三件事'
+                      : '先定今天三件事'
+                    : '今天三件事'
+                }
                 subtitle={
                   isMorningAnchorPending
-                    ? '确认之前不能进入其它页面。写下今天最重要的事，按优先级从上到下排。'
+                    ? anchorPrefill.length > 0
+                      ? '昨晚已经写好明日三件事，确认即可——也可以临时改两笔。确认后到下面拆第一步。'
+                      : '确认之前不能进入其它页面。写下今天最重要的事，按优先级从上到下排。'
                     : '今天已经定好方向，按完成情况推进。'
                 }
               >
