@@ -17,7 +17,7 @@ import {
 } from './lib/mobileTimer'
 import { CORE_PRINCIPLES } from './lib/principles'
 import { buildProgressSummary } from './lib/stats'
-import { getNextDayAnchorPrefill } from './lib/review'
+import { getNextDayAnchorItems } from './lib/review'
 import type { BeforeInstallPromptEvent } from './lib/pwa'
 import { createSyncSpaceId, isSyncEnvReady, syncSetupSql } from './lib/sync'
 import { useLifeApp } from './hooks/useLifeApp'
@@ -167,8 +167,9 @@ function App() {
       return next
     })
   }
-  // 昨晚（最近一次有记录的复盘）写下的「明日三件事」，用来预填今天的晨间锚点。
-  const anchorPrefill = useMemo(() => getNextDayAnchorPrefill(data.dayPlans, dayKey), [data.dayPlans, dayKey])
+  // 昨晚（最近一次有记录的复盘）写下的「明日三件事」（含预拆第一步），用来预填今天的晨间锚点。
+  const anchorPrefillItems = useMemo(() => getNextDayAnchorItems(data.dayPlans, dayKey), [data.dayPlans, dayKey])
+  const anchorPrefill = useMemo(() => anchorPrefillItems.map((item) => item.title), [anchorPrefillItems])
   const anchorPrefilledDayRef = useRef('')
   useEffect(() => {
     // 进入"待确认"状态时，用昨晚写好的明日三件事预填一次（每天只填一次，不覆盖手动修改）。
@@ -289,6 +290,7 @@ function App() {
     commonState: dayPlan.review?.commonState ?? '',
     tomorrow: dayPlan.review?.tomorrow ?? '',
     tomorrowTop3: dayPlan.review?.tomorrowTop3 ?? ['', '', ''],
+    tomorrowTop3Steps: dayPlan.review?.tomorrowTop3Steps ?? ['', '', ''],
     moodScore: dayPlan.review?.moodScore,
   })
   const [isTestingFeishu, setIsTestingFeishu] = useState(false)
@@ -482,6 +484,7 @@ function App() {
       commonState: dayPlan.review?.commonState ?? '',
       tomorrow: dayPlan.review?.tomorrow ?? '',
       tomorrowTop3: dayPlan.review?.tomorrowTop3 ?? ['', '', ''],
+      tomorrowTop3Steps: dayPlan.review?.tomorrowTop3Steps ?? ['', '', ''],
       moodScore: dayPlan.review?.moodScore,
     })
   }, [dayPlan.review])
@@ -1617,7 +1620,7 @@ function App() {
                       className="primary-button"
                       disabled={!anchorInputs.some((text) => text && text.trim())}
                       onClick={() => {
-                        const ids = actions.confirmMorningAnchor(anchorInputs)
+                        const ids = actions.confirmMorningAnchor(anchorInputs, anchorPrefillItems.map((item) => item.step ?? ''))
                         setAnchorInputs([])
                         const firstId = ids[0]
                         if (firstId) {
@@ -2881,20 +2884,33 @@ function App() {
                     </ul>
                   </div>
                   <div className="review-tomorrow-top3">
-                    <span className="muted-label">明日三件事</span>
+                    <span className="muted-label">明日三件事（可提前拆出第一步）</span>
                     {[0, 1, 2].map((idx) => (
-                      <input
-                        key={idx}
-                        value={reviewForm.tomorrowTop3?.[idx] ?? ''}
-                        placeholder={`明日第 ${idx + 1} 件事`}
-                        onChange={(event) =>
-                          setReviewForm((prev) => {
-                            const arr = [...(prev.tomorrowTop3 ?? ['', '', ''])]
-                            arr[idx] = event.target.value
-                            return { ...prev, tomorrowTop3: arr }
-                          })
-                        }
-                      />
+                      <div key={idx} className="review-tomorrow-row">
+                        <input
+                          value={reviewForm.tomorrowTop3?.[idx] ?? ''}
+                          placeholder={`明日第 ${idx + 1} 件事`}
+                          onChange={(event) =>
+                            setReviewForm((prev) => {
+                              const arr = [...(prev.tomorrowTop3 ?? ['', '', ''])]
+                              arr[idx] = event.target.value
+                              return { ...prev, tomorrowTop3: arr }
+                            })
+                          }
+                        />
+                        <input
+                          className="review-tomorrow-step"
+                          value={reviewForm.tomorrowTop3Steps?.[idx] ?? ''}
+                          placeholder="第一步（可选，明天直接开始）"
+                          onChange={(event) =>
+                            setReviewForm((prev) => {
+                              const arr = [...(prev.tomorrowTop3Steps ?? ['', '', ''])]
+                              arr[idx] = event.target.value
+                              return { ...prev, tomorrowTop3Steps: arr }
+                            })
+                          }
+                        />
+                      </div>
                     ))}
                   </div>
                   <label>

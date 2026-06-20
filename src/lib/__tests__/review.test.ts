@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getAnchorPrefillFromReview, getNextDayAnchorPrefill, isValidMoodScore } from '../review'
+import { getAnchorPrefillFromReview, getNextDayAnchorItems, getNextDayAnchorPrefill, isValidMoodScore } from '../review'
 import type { DailyReview, DayPlan } from '../../types'
 
 function makeReview(partial: Partial<DailyReview>): DailyReview {
@@ -54,6 +54,19 @@ describe('M3 getNextDayAnchorPrefill', () => {
       '2026-06-19': planWith('2026-06-19', ['今天的，不该被自己取用']),
     }
     expect(getNextDayAnchorPrefill(dayPlans, '2026-06-19')).toEqual([])
+  })
+
+  it('carries the pre-broken first step aligned to each title', () => {
+    const plan: DayPlan = {
+      ...planWith('2026-06-18', ['写方案', '', '回邮件']),
+      review: makeReview({ tomorrowTop3: ['写方案', '', '回邮件'], tomorrowTop3Steps: ['先列大纲', '忽略', '回老板那封'] }),
+    }
+    const items = getNextDayAnchorItems({ '2026-06-18': plan }, '2026-06-19')
+    // 空标题被过滤，步骤跟对剩下的标题
+    expect(items).toEqual([
+      { title: '写方案', step: '先列大纲' },
+      { title: '回邮件', step: '回老板那封' },
+    ])
   })
 })
 

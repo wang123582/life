@@ -2679,3 +2679,15 @@ body { background: var(--app-bg); }
     background: linear-gradient(90deg, var(--accent), var(--accent-2));
   }
 }
+
+/* 复盘·明日三件事：标题 + 可选第一步 */
+.review-tomorrow-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.review-tomorrow-step {
+  font-size: 13px;
+  margin-left: 12px;
+  opacity: 0.9;
+}

@@ -383,14 +383,18 @@ export function useLifeApp() {
     }
   }
 
-  const confirmMorningAnchor = (titles: string[]): string[] => {
+  const confirmMorningAnchor = (titles: string[], steps: string[] = []): string[] => {
     const slots = safeData.dailyTemplate.topTaskSlots
-    const cleaned = titles.map((title) => title.trim()).filter(Boolean).slice(0, Math.max(slots, 0))
+    // 标题与"预拆第一步"按下标对齐后再过滤空标题，保证步骤跟对任务。
+    const cleaned = titles
+      .map((title, index) => ({ title: title.trim(), step: steps[index]?.trim() ?? '' }))
+      .filter((entry) => entry.title)
+      .slice(0, Math.max(slots, 0))
     const now = new Date().toISOString()
 
     // 复用任务池机制：每件事建一个正常 taskDef，再放进今天，保持与其它任务一致。
     // 先在外面建好，便于把新任务的 todayItem id 返回给 UI（确认后直接跳到拆解阶段）。
-    const created = cleaned.map((title) => {
+    const created = cleaned.map(({ title, step }) => {
       const taskId = createId('task')
       const task: TaskDefinition = { id: taskId, title, kind: 'normal', createdAt: now }
       const item: TodayItem = {
@@ -400,7 +404,7 @@ export function useLifeApp() {
         kind: 'normal',
         isDone: false,
         order: 0,
-        steps: [],
+        steps: step ? [{ id: createId('step'), title: step, isDone: false }] : [],
         createdAt: now,
       }
       return { task, item }

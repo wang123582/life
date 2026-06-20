@@ -62,6 +62,7 @@ export interface DailyReview {
   commonState: StateType | ''
   tomorrow: string
   tomorrowTop3?: string[]
+  tomorrowTop3Steps?: string[]
   moodScore?: 1 | 2 | 3 | 4 | 5
   updatedAt: string
 }
@@ -204,5 +205,6 @@ export interface ReviewInput {
   commonState: StateType | ''
   tomorrow: string
   tomorrowTop3?: string[]
+  tomorrowTop3Steps?: string[]
   moodScore?: 1 | 2 | 3 | 4 | 5
 }
