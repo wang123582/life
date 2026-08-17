@@ -53,3 +53,9 @@ T0 工具链  ──→  S1 数据基建  ──┬──→ M5 核心原则
 - 2026-06-17 S3 完成 — test 34 passed / typecheck / lint / build 全绿（快照自动携带新字段；feishu 报文 + 预览加 明日三件事/情绪评分）
 - 2026-06-17 S4 完成 — test 36 passed / typecheck / lint / build 全绿（确认无需改原生层；focusLock web 降级测试）
 - 2026-06-17 全部模块完成 ✅ — 最终 test 36 passed / typecheck 0 / lint 0 错(3 既有告警) / build 通过
+- 2026-08-11 UI 全量重构完成 — test 42 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（App.tsx 3341→165 行，拆出 app/ui/views 三层；index.css 换成 token 设计系统，新增浅色模式与底部 Tab；飞书报文统一到 lib/report.ts；新增 App 渲染护栏测试）
+- 2026-08-12 视觉重做（第二轮）— test 42 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（顶部导航替代侧栏，单栏 660px 版式，计时器三处合一，今天页 9 区块→3 区块+页脚入口，按钮体系收敛为三种；删除 TimePicker 与飞书旧 post 报文分支等死代码）
+- 2026-08-12 第三轮视觉：日志本版式 — test 42 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（页边栏+正文栏两列结构、字号阶梯重排、等宽数字、DayRule 刻度尺、区块说明文案、次要内容折叠、冷灰蓝纸面配色）
+- 2026-08-12 第四轮视觉：方格纸与红铅笔 — test 42 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（自托管 Archivo + IBM Plex Mono，方格纸底纹，红铅笔强调色，新增签名元素 DayBar 真实时间轴，移除装饰性 DayRule）
+- 2026-08-17 第五轮视觉：手写体 + 落格 — test 42 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（Archivo 换成 Caveat+系统楷体的手写体系，按「谁写的」分三套字；--cell 24px 统一纵向节奏，笔记/复盘/步骤三处真横格；红页边线；全站方角 --edge 3px，分段控件与开关改成红笔记号；行列表三栏对齐、长期规则批改记号列、过程笔记版式重做、DayBar 改成画在纸上的尺；修掉 Chrome ::details-content 导致所有 Fold 正文掉进页边栏的布局 bug）
+- 2026-08-17 第五轮补刀：一屏减负 — test 42 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（区块说明改为「只在空状态/收起时出现」，日常三页常驻说明全删；删鼓励文案及其设置项、任务池建议行、页脚去复盘入口、任务行步数、PAGE_LEDE；已拆步骤的任务其「＋拆一步」退到 hover；清理失效样式 .quiet-row / .pill）

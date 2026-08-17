@@ -37,8 +37,6 @@ interface FeishuConnectionPayload {
   secret?: string
 }
 
-type FeishuTextLine = Array<{ tag: 'text'; text: string }>
-
 function toBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer)
   let binary = ''
@@ -67,10 +65,6 @@ async function generateSign(secret: string, timestamp: string): Promise<string> 
   return toBase64(signature)
 }
 
-function createTextLine(text: string): FeishuTextLine {
-  return [{ tag: 'text', text }]
-}
-
 /** M3/S3：复盘里"明日三件事 / 情绪评分"的附加行（缺省时不输出）。 */
 export function buildReviewExtraLines(review: DailyReview | null): string[] {
   const lines: string[] = []
@@ -82,57 +76,6 @@ export function buildReviewExtraLines(review: DailyReview | null): string[] {
     lines.push(`今日状态评分：${review.moodScore}/5`)
   }
   return lines
-}
-
-function buildParagraphs(payload: FeishuReportPayload): FeishuTextLine[] {
-  const keywordPrefix = payload.keyword?.trim() ? `${payload.keyword!.trim()}\n` : ''
-  const completedStepLines = payload.completedSteps.length > 0
-    ? payload.completedSteps.map((step) => `- ${step.taskTitle}｜${step.stepTitle}${step.completedAt ? `（${dayjs(step.completedAt).format('HH:mm')}）` : ''}`)
-    : ['- 今天还没有勾掉任何一步。']
-
-  const difficultyLines = payload.difficulties.length > 0
-    ? payload.difficulties.slice(0, 8).map((item) => `- ${dayjs(item.createdAt).format('HH:mm')}｜${difficultyTemplateLabels[item.type]}｜${item.note || '未写卡点'}｜下一步：${item.nextAction || '未写'}`)
-    : ['- 今天还没有记录困难。']
-
-  const focusLines = payload.focusSessions.length > 0
-    ? payload.focusSessions.slice(0, 8).map((session) => `- ${dayjs(session.startedAt).format('HH:mm')} → ${dayjs(session.endedAt).format('HH:mm')}｜${session.status === 'completed' ? '完成' : '中断'}｜${session.plannedMinutes} 分钟${session.accomplishment ? `｜${session.accomplishment}` : ''}`)
-    : ['- 今天还没有番茄记录。']
-
-  const review = payload.review
-  const reviewLines = [
-    `今天完成了什么：${review?.wins || '还没写。'}`,
-    `今天失守了什么：${review?.slips || '还没写。'}`,
-    `今天最常见的状态：${payload.commonStateLabel || '还没选。'}`,
-    `明天第一步：${review?.tomorrow || '还没写。'}`,
-    ...buildReviewExtraLines(review),
-  ]
-
-  return [
-    createTextLine(`${keywordPrefix}${dayjs(payload.dayKey).format('M 月 D 日')} 今天总结`),
-    createTextLine(`交流：${payload.communicationDone ? '已完成' : '未完成'}${payload.communicationNote ? `｜${payload.communicationNote}` : ''}`),
-    createTextLine('【今天总结】'),
-    ...reviewLines.map((line) => createTextLine(line)),
-    createTextLine('【做完的步骤】'),
-    ...completedStepLines.map((line) => createTextLine(line)),
-    createTextLine('【困难日志】'),
-    ...difficultyLines.map((line) => createTextLine(line)),
-    createTextLine('【和时钟关联】'),
-    ...focusLines.map((line) => createTextLine(line)),
-  ]
-}
-
-function buildFeishuBody(payload: FeishuReportPayload) {
-  return {
-    msg_type: 'post' as const,
-    content: {
-      post: {
-        zh_cn: {
-          title: `${payload.keyword?.trim() ? `${payload.keyword!.trim()} · ` : ''}${dayjs(payload.dayKey).format('M 月 D 日')} life 日报`,
-          content: buildParagraphs(payload),
-        },
-      },
-    },
-  }
 }
 
 function buildConnectionTestBody(payload: FeishuConnectionPayload) {
@@ -217,10 +160,6 @@ export function getStateLabel(value: StateType | ''): string {
 
 export async function sendFeishuConnectionTest(payload: FeishuConnectionPayload): Promise<void> {
   await postToFeishu(payload, buildConnectionTestBody(payload))
-}
-
-export async function sendTodayReportToFeishu(payload: FeishuReportPayload): Promise<void> {
-  await postToFeishu(payload, buildFeishuBody(payload))
 }
 
 export function buildReportPreviewText(payload: FeishuReportPayload): string {

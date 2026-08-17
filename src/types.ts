@@ -141,13 +141,15 @@ export interface WeeklyTemplate {
 }
 
 export interface AppSettings {
+  /** 强调色预设 id，见 ui/theme.ts 的 ACCENTS。 */
   theme: string
+  /** 明暗外观：auto 跟随系统。旧快照没有这个字段时按 auto 处理。 */
+  appearance: 'auto' | 'light' | 'dark'
   focusMinutes: number
   breakMinutes: number
   desktopNotificationsEnabled: boolean
   blockerLevel: 'light' | 'soft' | 'hard'
   blockedTargets: string[]
-  encouragementEnabled: boolean
   syncEnabled: boolean
   syncSpaceId: string
   syncDeviceName: string

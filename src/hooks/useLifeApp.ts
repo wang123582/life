@@ -1222,3 +1222,6 @@ export function useLifeApp() {
     },
   }
 }
+
+/** 整个应用的状态与动作集合，供各视图组件复用。 */
+export type LifeApp = ReturnType<typeof useLifeApp>

@@ -11,14 +11,6 @@ import {
 
 export const STORAGE_KEY = 'life-app-v1'
 
-export const encouragementMessages = [
-  '先别想着做完一切，先把眼前这一小步做掉。',
-  '你给自己设的目标值得被认真对待，现在就开始。',
-  '不用完美，先开始 25 分钟，今天就会不一样。',
-  '卡住也没关系，把困难写下来，下一步会更清楚。',
-  '先回到你自己决定的目标上，手机晚一点再看。',
-]
-
 export const stateTemplateLabels: Record<StateType, string> = {
   distracted: '分心',
   delay: '拖延',
@@ -207,12 +199,12 @@ export function defaultData(): LifeAppData {
     },
     settings: {
       theme: 'default',
+      appearance: 'auto',
       focusMinutes: 25,
       breakMinutes: 5,
       desktopNotificationsEnabled: true,
       blockerLevel: 'soft',
       blockedTargets: ['抖音', '微博', '小红书', 'Bilibili'],
-      encouragementEnabled: true,
       syncEnabled: false,
       syncSpaceId: '',
       syncDeviceName: defaultDeviceName(),
