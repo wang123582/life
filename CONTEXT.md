@@ -22,6 +22,29 @@ src/
 
 ## 最近变更
 
+- **2026-08-20 修掉 Cloudflare Pages 构建失败，顺手更新安卓安装包**
+  Cloudflare 部署连续报了两轮错，根因都在 `package-lock.json`：
+  1. 旧锁文件里塞了大量陈旧冗余依赖（760 包，本该只有 ~545），`vitest@4` 嵌套的
+     `vite@8` 需要 `esbuild ^0.27/^0.28`，却被去重到过时的 `esbuild@0.21.5`，
+     本地 `npm ls` 能看出这条 `invalid`；Cloudflare 的 `npm ci` 严格校验，直接报
+     `Missing: esbuild@0.28.2 from lock file` 退出。
+  2. 用本机 npm 11.12.1 重新生成锁文件后，esbuild@0.28.2 的 26 个平台子包被标成
+     `extraneous` 而不是 `optional`；Cloudflare 用的是 npm 10.9.2，`npm ci` 把
+     `extraneous` 当必装，于是又报 `EBADPLATFORM`（想装 netbsd-arm64 到 linux 机器）。
+  **教训：本机 npm 版本要和部署环境（Cloudflare 用 npm@10.9.2）对齐，否则同一份
+  依赖树在锁文件里的 `optional`/`extraneous` 标记会不一致。** 最终用
+  `npx npm@10.9.2 install` 重新生成锁文件，`npm ci` + `npm run build` 本地验证通过。
+  顺手用最新代码跑了一遍 `npm run android:apk:debug`，把新调试包同步进
+  `public/downloads/life-android.apk`（网页下载入口用的就是这个文件，随 Cloudflare
+  这次部署一起更新）。
+  本机 Android 构建环境的两个隐坑记一下：Windows 下 npm 默认用 cmd.exe 执行
+  `npm run` 脚本，脚本里的 `./scripts/xxx.sh` / `rm -rf` 在 cmd 里跑不了，要么设
+  `npm_config_script_shell=/usr/bin/bash`，要么直接手动 `export` 好环境变量后调
+  `bash scripts/android-gradlew.sh`；PATH 里的 `python3` 是 Windows Store 的空壳
+  （静默失败，exit 49），`scripts/android-repo-proxy.py`（绕 Google/Maven 仓库
+  DNS/TLS 问题用的本地代理）必须用真实解释器（本机是 `/d/python/python3.13/python`）
+  手动起，否则 Gradle 连不上 `127.0.0.1:4873` 直接报 `Connection refused`。
+
 - **2026-08-18 修掉「小黑棍」：设置页 SQL 折叠区的浏览器默认 marker**
   用户看到展开箭头旁边多一根"斜着的小黑棍"。查下来是 `details.mini`（设置 → 跨设备同步 →
   「Supabase 建表 SQL」）**漏了压制原生 marker**——全站其它 `<details>`（`.fold`、`.history`）
