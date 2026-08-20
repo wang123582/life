@@ -207,7 +207,7 @@ export async function syncEveningReminders(settings: {
       DAILY_REMINDER_IDS.review,
       settings.reviewReminderTime,
       'life · 晚间复盘',
-      '该复盘了：勾今天三件事，写明天三件事。',
+      '该复盘了：看今天这一件，写明天这一件。',
     )
   } else {
     await cancelDailyReminder(DAILY_REMINDER_IDS.review)

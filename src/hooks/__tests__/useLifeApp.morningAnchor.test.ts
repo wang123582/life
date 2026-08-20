@@ -12,13 +12,14 @@ describe('M1 morning anchor', () => {
     expect(result.current.isMorningAnchorPending).toBe(true)
   })
 
-  it('confirms at most topTaskSlots items, skips blanks, and clears pending', () => {
+  it('confirms at most topTaskSlots items (default 1 — 一天一件), skips blanks, and clears pending', () => {
     const { result } = renderHook(() => useLifeApp())
-    const slots = result.current.data.dailyTemplate.topTaskSlots // default 3
+    const slots = result.current.data.dailyTemplate.topTaskSlots
+    expect(slots).toBe(1)
     const before = result.current.dayPlan.todayItems.length
 
     act(() => {
-      result.current.actions.confirmMorningAnchor(['写报告', '  ', '健身', '读书', '多余的一条'])
+      result.current.actions.confirmMorningAnchor(['写报告', '健身', '读书'])
     })
 
     expect(result.current.isMorningAnchorPending).toBe(false)
@@ -27,12 +28,11 @@ describe('M1 morning anchor', () => {
     const normalTitles = result.current.dayPlan.todayItems
       .filter((item) => item.kind === 'normal')
       .map((item) => item.title)
-    // exactly `slots` new normal items were added (blanks skipped, overflow trimmed)
+    // exactly `slots` (1) new normal item was added — overflow trimmed
     expect(result.current.dayPlan.todayItems.length).toBe(before + slots)
     expect(normalTitles).toContain('写报告')
-    expect(normalTitles).toContain('健身')
-    expect(normalTitles).toContain('读书')
-    expect(normalTitles).not.toContain('多余的一条')
+    expect(normalTitles).not.toContain('健身')
+    expect(normalTitles).not.toContain('读书')
 
     // order is contiguous 1..n
     const orders = result.current.dayPlan.todayItems.map((item) => item.order)
@@ -42,7 +42,7 @@ describe('M1 morning anchor', () => {
   it('resetMorningAnchor returns to pending', () => {
     const { result } = renderHook(() => useLifeApp())
     act(() => {
-      result.current.actions.confirmMorningAnchor(['a', 'b', 'c'])
+      result.current.actions.confirmMorningAnchor(['a'])
     })
     expect(result.current.isMorningAnchorPending).toBe(false)
     act(() => {

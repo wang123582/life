@@ -9,10 +9,10 @@ describe('App 渲染', () => {
     localStorage.clear()
   })
 
-  it('未确认今日三件事时，只显示晨间锚点', () => {
+  it('未确认今天这一件事时，只显示晨间锚点', () => {
     render(<App />)
 
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/三件事/)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/这一件事/)
     expect(screen.queryByText('主线')).toBeNull()
   })
 

@@ -65,12 +65,12 @@ async function generateSign(secret: string, timestamp: string): Promise<string> 
   return toBase64(signature)
 }
 
-/** M3/S3：复盘里"明日三件事 / 情绪评分"的附加行（缺省时不输出）。 */
+/** M3/S3：复盘里"明天要做的事 / 情绪评分"的附加行（缺省时不输出）。 */
 export function buildReviewExtraLines(review: DailyReview | null): string[] {
   const lines: string[] = []
   const top3 = review?.tomorrowTop3?.map((title) => title.trim()).filter(Boolean) ?? []
   if (top3.length > 0) {
-    lines.push(`明日三件事：${top3.join('、')}`)
+    lines.push(`明天：${top3.join('、')}`)
   }
   if (review?.moodScore) {
     lines.push(`今日状态评分：${review.moodScore}/5`)

@@ -12,36 +12,53 @@ function AnchorGate({ life }: { life: ViewProps['life'] }) {
   const { data, dayKey, actions } = life
   const prefill = useMemo(() => getNextDayAnchorItems(data.dayPlans, dayKey), [data.dayPlans, dayKey])
   const [inputs, setInputs] = useState<string[]>(() => prefill.map((item) => item.title))
+  const [steps, setSteps] = useState<string[]>(() => prefill.map((item) => item.step ?? ''))
 
   useEffect(() => {
-    if (prefill.length > 0) setInputs(prefill.map((item) => item.title))
+    if (prefill.length > 0) {
+      setInputs(prefill.map((item) => item.title))
+      setSteps(prefill.map((item) => item.step ?? ''))
+    }
   }, [prefill])
 
-  const canConfirm = inputs.some((text) => text?.trim())
+  const canConfirm = inputs.some((text, index) => text?.trim() && steps[index]?.trim())
 
   return (
     <div className="gate">
-      <p className="kicker">今日三件事</p>
-      <h1>{prefill.length > 0 ? '确认今天这三件事' : '今天要做的三件事'}</h1>
+      <p className="kicker">今天唯一的一件事</p>
+      <h1>{prefill.length > 0 ? '确认这一件事' : '今天要做的这一件事'}</h1>
       <p className="lede">
-        {prefill.length > 0 ? '昨晚已经写好了，确认就能开始。' : '按重要性从上往下写。确认之前，别的页面都进不去。'}
+        {prefill.length > 0 ? '昨晚已经写好了，确认就能开始。' : '写这一件，别的事今天不存在。确认之前，别的页面都进不去。'}
       </p>
 
       <ol className="gate-list">
         {Array.from({ length: data.dailyTemplate.topTaskSlots }).map((_, index) => (
           <li key={index}>
             <span>{index + 1}</span>
-            <input
-              value={inputs[index] ?? ''}
-              placeholder={index === 0 ? '最重要的一件' : '还有什么'}
-              onChange={(event) =>
-                setInputs((prev) => {
-                  const next = [...prev]
-                  next[index] = event.target.value
-                  return next
-                })
-              }
-            />
+            <div className="gate-fields">
+              <input
+                value={inputs[index] ?? ''}
+                placeholder="这一件是什么"
+                onChange={(event) =>
+                  setInputs((prev) => {
+                    const next = [...prev]
+                    next[index] = event.target.value
+                    return next
+                  })
+                }
+              />
+              <input
+                value={steps[index] ?? ''}
+                placeholder="下一秒手放在哪？填不出来就再拆一层"
+                onChange={(event) =>
+                  setSteps((prev) => {
+                    const next = [...prev]
+                    next[index] = event.target.value
+                    return next
+                  })
+                }
+              />
+            </div>
           </li>
         ))}
       </ol>
@@ -50,11 +67,11 @@ function AnchorGate({ life }: { life: ViewProps['life'] }) {
         type="button"
         className="btn primary"
         disabled={!canConfirm}
-        onClick={() => actions.confirmMorningAnchor(inputs, prefill.map((item) => item.step ?? ''))}
+        onClick={() => actions.confirmMorningAnchor(inputs, steps)}
       >
         确认，开始今天
       </button>
-      <p className="fine">写不出来就写最小的那件。写下来比写对重要。</p>
+      <p className="fine">两格都写不出来，说明还没拆到能动手——再拆一层。</p>
     </div>
   )
 }
@@ -69,6 +86,9 @@ function TaskRow({ item, index, life }: { item: TodayItem; index: number; life: 
   const doneSteps = item.steps.filter((step) => step.isDone)
   const openSteps = item.steps.filter((step) => !step.isDone)
   const visibleSteps = showDone ? item.steps : openSteps
+  // 主屏显示的是「下一秒手放哪」，不是标题——标题降级为副行。
+  const leadStep = item.steps[0]
+  const primaryText = leadStep?.title || item.title
 
   return (
     <li className={item.isDone ? 'entry done' : 'entry'}>
@@ -83,8 +103,14 @@ function TaskRow({ item, index, life }: { item: TodayItem; index: number; life: 
         </button>
 
         <div className="row-text">
-          <p className="row-title">{item.title}</p>
-          {source?.deadlineDate ? <p className="row-sub">截止 {formatDeadline(source.deadlineDate)}</p> : null}
+          <p className="row-title">{primaryText}</p>
+          {leadStep || source?.deadlineDate ? (
+            <p className="row-sub">
+              {leadStep ? item.title : ''}
+              {leadStep && source?.deadlineDate ? ' · ' : ''}
+              {source?.deadlineDate ? `截止 ${formatDeadline(source.deadlineDate)}` : ''}
+            </p>
+          ) : null}
         </div>
 
         <div className="row-tools">
@@ -249,12 +275,21 @@ function StuckDialog({ life, onClose }: { life: ViewProps['life']; onClose: () =
 export function TodayView({ life, runtime, goToTab }: ViewProps) {
   const { data, dayPlan, isMorningAnchorPending, activeRelaxWindow, actions } = life
   const [quick, setQuick] = useState('')
+  const [quickStep, setQuickStep] = useState('')
   const [avoidText, setAvoidText] = useState('')
   const [curiosity, setCuriosity] = useState('')
   const [showStuck, setShowStuck] = useState(false)
   const [showCuriosity, setShowCuriosity] = useState(false)
 
   const mainItems = dayPlan.todayItems.filter((item) => item.kind !== 'routine')
+  const mainDone = mainItems.filter((item) => item.isDone)
+  const mainPending = mainItems.filter((item) => !item.isDone)
+  // 主屏只留一件：其余待做的（deadline 自动同步、之前多加的）一律收进「今天不做」。
+  const activeItem = mainPending[0]
+  const backlogItems = mainPending.slice(1)
+  const backlogTasks = data.taskDefs.filter(
+    (task) => task.kind === 'normal' && !task.archived && !mainItems.some((item) => item.sourceTaskId === task.id),
+  )
   const routines = dayPlan.todayItems.filter((item) => item.kind === 'routine')
   const routinesDone = routines.filter((item) => item.isDone).length
   const openCuriosity = data.curiosityItems.filter((item) => !item.archived)
@@ -279,33 +314,68 @@ export function TodayView({ life, runtime, goToTab }: ViewProps) {
 
       <Section
         title="主线"
-        count={`${mainItems.filter((item) => item.isDone).length}/${mainItems.length}`}
+        count={mainDone.length > 0 ? `今天已完成 ${mainDone.length} 件` : undefined}
         actions={
           <button type="button" className="link" onClick={() => goToTab('pool')}>
             任务池 →
           </button>
         }
       >
-        <ol className="rows">
-          {mainItems.map((item, index) => (
-            <TaskRow key={item.id} item={item} index={index + 1} life={life} />
-          ))}
-        </ol>
+        {activeItem ? (
+          <ol className="rows">
+            <TaskRow item={activeItem} index={1} life={life} />
+          </ol>
+        ) : mainItems.length === 0 ? (
+          <Empty>今天还没有这一件。写一件，或从任务池挑——先拆一个能立刻动手的小步骤。</Empty>
+        ) : null}
 
         <form
           className="add"
           onSubmit={(event) => {
             event.preventDefault()
-            if (!actions.quickStartTodayTask(quick)) return
+            if (!actions.quickStartTodayTask(quick, quickStep)) return
             setQuick('')
-            runtime.notify('已放进今天。', 'success')
+            setQuickStep('')
+            runtime.notify(activeItem ? '已放进「今天不做」，等这件做完再看。' : '已放进今天。', 'success')
           }}
         >
-          <input value={quick} placeholder="＋ 再加一件今天要做的" onChange={(event) => setQuick(event.target.value)} />
+          <input
+            value={quick}
+            placeholder={activeItem ? '＋ 再想到一件，先记下' : '今天唯一的一件是什么'}
+            onChange={(event) => setQuick(event.target.value)}
+          />
+          <input
+            value={quickStep}
+            placeholder="下一秒手放在哪？填不出来就再拆一层"
+            onChange={(event) => setQuickStep(event.target.value)}
+          />
+          <button type="submit" className="btn primary sm" disabled={!quick.trim() || !quickStep.trim()}>
+            {activeItem ? '记下' : '开始'}
+          </button>
         </form>
-
-        {mainItems.length === 0 ? <Empty>今天还没有主线。写一件，或从任务池挑——每件先拆一个能立刻动手的小步骤。</Empty> : null}
       </Section>
+
+      {backlogItems.length > 0 || backlogTasks.length > 0 ? (
+        <Fold title="今天不做" count={backlogItems.length + backlogTasks.length} friction>
+          <ul className="lines">
+            {backlogItems.map((item) => (
+              <li key={item.id}>
+                <span className="ln-title">{item.title}</span>
+                <em className="ln-meta" />
+              </li>
+            ))}
+            {backlogTasks.map((task) => (
+              <li key={task.id}>
+                <span className="ln-title">{task.title}</span>
+                <em className="ln-meta" />
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="link" onClick={() => goToTab('pool')}>
+            去任务池管理 →
+          </button>
+        </Fold>
+      ) : null}
 
       <Section
         title="边界"

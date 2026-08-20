@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 
 /**
  * 日志本版式：标题和计数落在左侧页边栏，正文在右栏。
@@ -39,23 +39,55 @@ export function Section({
   )
 }
 
-/** 折叠区块：次要内容默认收起，标题仍在页边栏，收合箭头贴着正文栏。 */
+/**
+ * 折叠区块：次要内容默认收起，标题仍在页边栏，收合箭头贴着正文栏。
+ * `friction` 为真时故意加一道摩擦：第一次点开只显示确认行，
+ * 点确认行才真正展开正文——用于「今天不做」这类不该顺手点开的区块。
+ */
 export function Fold({
   title,
   count,
   desc,
   children,
   open,
+  friction,
 }: {
   title: string
   count?: ReactNode
   desc?: string
   children: ReactNode
   open?: boolean
+  friction?: boolean
 }) {
+  const [stage, setStage] = useState(open ? 2 : 0)
+
+  if (!friction) {
+    return (
+      <details className="sec fold" open={open}>
+        <summary>
+          <span className="gutter">
+            <h2>{title}</h2>
+            {count !== undefined && count !== null ? <b>{count}</b> : null}
+          </span>
+          <span className="fold-bar">
+            {desc ? <span className="desc">{desc}</span> : null}
+            <i aria-hidden="true" />
+          </span>
+        </summary>
+        <div className="body">{children}</div>
+      </details>
+    )
+  }
+
+  const handleSummaryClick = (event: MouseEvent<HTMLElement>) => {
+    if (stage >= 2) return
+    event.preventDefault()
+    setStage((prev) => (prev === 0 ? 1 : 2))
+  }
+
   return (
-    <details className="sec fold" open={open}>
-      <summary>
+    <details className="sec fold" open={stage >= 1}>
+      <summary onClick={handleSummaryClick}>
         <span className="gutter">
           <h2>{title}</h2>
           {count !== undefined && count !== null ? <b>{count}</b> : null}
@@ -65,7 +97,15 @@ export function Fold({
           <i aria-hidden="true" />
         </span>
       </summary>
-      <div className="body">{children}</div>
+      {stage === 1 ? (
+        <div className="body">
+          <button type="button" className="link" onClick={() => setStage(2)}>
+            确定要看 →
+          </button>
+        </div>
+      ) : (
+        <div className="body">{children}</div>
+      )}
     </details>
   )
 }

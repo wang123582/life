@@ -10,6 +10,7 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
   const [kind, setKind] = useState<TaskKind>('normal')
   const [time, setTime] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [nextStep, setNextStep] = useState('')
   const [ruleText, setRuleText] = useState('')
   const [ruleType, setRuleType] = useState<RuleType>('do')
 
@@ -29,10 +30,17 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
           className="compose"
           onSubmit={(event) => {
             event.preventDefault()
-            actions.addTaskDefinition(title, kind, kind === 'routine' && time ? time : undefined, kind === 'normal' ? deadline : undefined)
+            actions.addTaskDefinition(
+              title,
+              kind,
+              kind === 'routine' && time ? time : undefined,
+              kind === 'normal' ? deadline : undefined,
+              kind === 'normal' ? nextStep : undefined,
+            )
             setTitle('')
             setTime('')
             setDeadline('')
+            setNextStep('')
           }}
         >
           <input
@@ -40,6 +48,13 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
             placeholder="要做什么？也可以直接写「吃饭 12:30」"
             onChange={(event) => setTitle(event.target.value)}
           />
+          {kind === 'normal' ? (
+            <input
+              value={nextStep}
+              placeholder="下一秒手放在哪？填不出来就再拆一层"
+              onChange={(event) => setNextStep(event.target.value)}
+            />
+          ) : null}
           <div className="compose-foot">
             <Segmented
               value={kind}
@@ -47,6 +62,7 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
                 setKind(next)
                 setTime('')
                 setDeadline('')
+                setNextStep('')
               }}
               options={[
                 { value: 'normal', label: '主动任务' },
@@ -58,7 +74,11 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
             ) : (
               <input className="slim" type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
             )}
-            <button type="submit" className="btn primary sm" disabled={!title.trim()}>
+            <button
+              type="submit"
+              className="btn primary sm"
+              disabled={!title.trim() || (kind === 'normal' && !nextStep.trim())}
+            >
               加入
             </button>
           </div>

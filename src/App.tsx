@@ -33,7 +33,7 @@ function App() {
   const { data, dayKey, isMorningAnchorPending } = life
   const locked = isMorningAnchorPending
 
-  // D1 硬阻断：未确认今日三件事前，任何入口都只能回到今天页。
+  // D1 硬阻断：未确认今天这一件事前，任何入口都只能回到今天页。
   useEffect(() => {
     if (locked && tab !== 'today') setTab('today')
   }, [locked, tab])
@@ -62,7 +62,7 @@ function App() {
                 type="button"
                 className={entry.key === tab ? 'on' : undefined}
                 disabled={locked && entry.key !== 'today'}
-                title={locked && entry.key !== 'today' ? '先定今天三件事' : undefined}
+                title={locked && entry.key !== 'today' ? '先定今天这一件事' : undefined}
                 onClick={() => goToTab(entry.key)}
               >
                 {entry.label}

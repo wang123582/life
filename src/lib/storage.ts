@@ -34,10 +34,8 @@ export function loadData(): LifeAppData {
       dailyTemplate: {
         ...fallback.dailyTemplate,
         ...parsed.dailyTemplate,
-      },
-      weeklyTemplate: {
-        ...fallback.weeklyTemplate,
-        ...parsed.weeklyTemplate,
+        // 一天一件不再可配置：不论旧快照存的是什么，一律以 1 为准。
+        topTaskSlots: 1,
       },
       settings: {
         ...fallback.settings,

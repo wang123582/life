@@ -86,7 +86,16 @@ function createTodayItemFromTask(task: TaskDefinition, order: number) {
               completedAt: undefined,
             },
           ]
-        : [],
+        : task.nextStep?.trim()
+          ? [
+              {
+                id: createId('step'),
+                title: task.nextStep.trim(),
+                isDone: false,
+                completedAt: undefined,
+              },
+            ]
+          : [],
     createdAt: new Date().toISOString(),
   }
 }
@@ -185,17 +194,11 @@ export function defaultData(): LifeAppData {
     relaxWindows: [],
     curiosityItems: [],
     dailyTemplate: {
-      topTaskSlots: 3,
+      topTaskSlots: 1,
       routineSlots: 2,
       avoidSlots: 1,
       communicationPrompt: '今天和一个人认真交流一次。',
       relaxMinutes: 15,
-    },
-    weeklyTemplate: {
-      directions: ['推进一个核心目标', '保持身体节奏', '多和人交流'],
-      riskScenarios: ['刷手机停不下来', '任务太大导致拖延'],
-      communicationGoal: '本周主动联系至少 1 个人。',
-      restPlan: '按时吃饭，至少留一个完整放松窗口。',
     },
     settings: {
       theme: 'default',

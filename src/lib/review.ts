@@ -1,7 +1,7 @@
 import type { DailyReview, DayPlan } from '../types'
 
 /**
- * M3 → M1 衔接：把昨日复盘里写的"明日三件事"取出来，
+ * M3 → M1 衔接：把昨日复盘里写的"明天这一件事"取出来，
  * 作为今日晨间锚点 (confirmMorningAnchor) 的预填内容。纯函数、无副作用。
  */
 export function getAnchorPrefillFromReview(review: DailyReview | null | undefined): string[] {
@@ -17,8 +17,8 @@ export interface AnchorItem {
 }
 
 /**
- * 取"今天之前最近一次有记录的复盘"里写的明日三件事（含可选的预拆第一步），
- * 用于今天晨间锚点的预填。跳过空白天，找到最近写过明日三件事的那天。
+ * 取"今天之前最近一次有记录的复盘"里写的明天这一件事（含可选的预拆第一步），
+ * 用于今天晨间锚点的预填。跳过空白天，找到最近写过明天这一件事的那天。
  * step 与 title 按原始下标对齐后再过滤空标题，保证步骤跟对任务。
  */
 export function getNextDayAnchorItems(dayPlans: Record<string, DayPlan>, today: string): AnchorItem[] {

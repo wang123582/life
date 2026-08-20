@@ -20,7 +20,6 @@ import type {
   TaskKind,
   TaskStep,
   TodayItem,
-  WeeklyTemplate,
 } from '../types'
 
 const relaxRecommendations = [
@@ -83,7 +82,16 @@ function createTodayItemFromTask(task: TaskDefinition, order: number): TodayItem
               completedAt: undefined,
             },
           ]
-        : [],
+        : task.nextStep?.trim()
+          ? [
+              {
+                id: createId('step'),
+                title: task.nextStep.trim(),
+                isDone: false,
+                completedAt: undefined,
+              },
+            ]
+          : [],
     createdAt: new Date().toISOString(),
   }
 }
@@ -291,14 +299,16 @@ export function useLifeApp() {
     setSyncMessage('已把这台设备的数据上传到云端。')
   }
 
-  const addTaskDefinition = (title: string, kind: TaskKind, scheduleTime?: string, deadlineDate?: string) => {
+  const addTaskDefinition = (title: string, kind: TaskKind, scheduleTime?: string, deadlineDate?: string, nextStep?: string) => {
     const parsedInput = parseQuickTaskInput(title, kind, scheduleTime)
     if (!parsedInput.title) return
+    if (parsedInput.kind === 'normal' && !nextStep?.trim()) return
 
     const task: TaskDefinition = {
       id: createId('task'),
       title: parsedInput.title,
       kind: parsedInput.kind,
+      nextStep: parsedInput.kind === 'normal' ? nextStep?.trim() || undefined : undefined,
       scheduleTime: parsedInput.scheduleTime,
       deadlineDate: parsedInput.kind === 'normal' ? deadlineDate?.trim() || undefined : undefined,
       createdAt: new Date().toISOString(),
@@ -467,7 +477,7 @@ export function useLifeApp() {
     const shouldCreateStarterStep = task.kind === 'normal' && (!existing || existing.steps.length === 0)
     const todayItemId = existing?.id ?? createId('today')
     const starterStepId = existingPendingStep?.id ?? (shouldCreateStarterStep ? createId('step') : undefined)
-    const starterStepTitle = shouldCreateStarterStep ? `先开始：${task.title}` : undefined
+    const starterStepTitle = shouldCreateStarterStep ? task.nextStep?.trim() || `先开始：${task.title}` : undefined
 
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
@@ -853,13 +863,6 @@ export function useLifeApp() {
     }))
   }
 
-  const updateWeeklyTemplate = (payload: WeeklyTemplate) => {
-    setData((prev) => ({
-      ...stampData(prev),
-      weeklyTemplate: payload,
-    }))
-  }
-
   const updateSettings = (payload: Partial<AppSettings>) => {
     setData((prev) => ({
       ...stampData(prev),
@@ -1204,7 +1207,6 @@ export function useLifeApp() {
       removeCuriosityItem,
       archiveCuriosityItem,
       updateDailyTemplate,
-      updateWeeklyTemplate,
       updateSettings,
       startFocusTimer,
       cancelTimer,

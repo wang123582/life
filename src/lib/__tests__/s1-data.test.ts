@@ -77,6 +77,8 @@ describe('S1 loadData backward compatibility', () => {
     expect(loaded.dayPlans[todayKey].morningAnchorDone).toBe(false)
     // existing values preserved
     expect(loaded.settings.focusMinutes).toBe(25)
+    // 一天一件不可配置：旧快照存的 3 也会被强制拉回 1
+    expect(loaded.dailyTemplate.topTaskSlots).toBe(1)
   })
 
   it('returns defaults when storage is empty', () => {

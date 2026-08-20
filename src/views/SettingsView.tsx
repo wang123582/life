@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { sendFeishuConnectionTest } from '../lib/feishu'
-import { CORE_PRINCIPLES } from '../lib/principles'
 import { createSyncSpaceId, isSyncEnvReady, syncSetupSql } from '../lib/sync'
 import { Field, Fold, Note, Section, Segmented, Toggle } from '../ui/primitives'
 import { ACCENTS, APPEARANCES } from '../ui/theme'
@@ -12,15 +11,9 @@ export function SettingsView({ life, runtime }: ViewProps) {
   const { data, sync, actions } = life
   const { settings } = data
 
-  const [slots, setSlots] = useState(String(data.dailyTemplate.topTaskSlots))
   const [focusMinutes, setFocusMinutes] = useState(String(settings.focusMinutes))
   const [breakMinutes, setBreakMinutes] = useState(String(settings.breakMinutes))
   const [relaxMinutes, setRelaxMinutes] = useState(String(data.dailyTemplate.relaxMinutes))
-
-  const [directions, setDirections] = useState(data.weeklyTemplate.directions.join('\n'))
-  const [risks, setRisks] = useState(data.weeklyTemplate.riskScenarios.join('\n'))
-  const [goal, setGoal] = useState(data.weeklyTemplate.communicationGoal)
-  const [restPlan, setRestPlan] = useState(data.weeklyTemplate.restPlan)
 
   const [blocked, setBlocked] = useState(settings.blockedTargets.join('\n'))
   const [spaceId, setSpaceId] = useState(settings.syncSpaceId)
@@ -39,7 +32,6 @@ export function SettingsView({ life, runtime }: ViewProps) {
 
   const saveRhythm = () => {
     actions.updateDailyTemplate({
-      topTaskSlots: Number(slots) || data.dailyTemplate.topTaskSlots,
       relaxMinutes: Number(relaxMinutes) || data.dailyTemplate.relaxMinutes,
     })
     actions.updateSettings({
@@ -102,11 +94,8 @@ export function SettingsView({ life, runtime }: ViewProps) {
         ) : null}
       </Section>
 
-      <Section title="节奏" desc="刚开始用就别动，默认是 3 件事 + 25 分钟。">
+      <Section title="节奏" desc="今天只有一件事，不可配置。这里只调专注和休息的分钟数。">
         <div className="quad">
-          <Field label="今日几件事">
-            <input value={slots} inputMode="numeric" onChange={(event) => setSlots(event.target.value)} />
-          </Field>
           <Field label="专注（分）">
             <input value={focusMinutes} inputMode="numeric" onChange={(event) => setFocusMinutes(event.target.value)} />
           </Field>
@@ -171,38 +160,6 @@ export function SettingsView({ life, runtime }: ViewProps) {
           开启收工提示
         </Toggle>
       </Section>
-
-      <Fold title="本周模板" desc="一周只定 3 个方向，别每天改。">
-        <Field label="本周方向" hint="每行一项">
-          <textarea rows={3} value={directions} onChange={(event) => setDirections(event.target.value)} />
-        </Field>
-        <Field label="最容易失守的场景" hint="每行一项">
-          <textarea rows={3} value={risks} onChange={(event) => setRisks(event.target.value)} />
-        </Field>
-        <div className="pair">
-          <Field label="交流目标">
-            <input value={goal} onChange={(event) => setGoal(event.target.value)} />
-          </Field>
-          <Field label="休息安排">
-            <input value={restPlan} onChange={(event) => setRestPlan(event.target.value)} />
-          </Field>
-        </div>
-        <button
-          type="button"
-          className="btn sm"
-          onClick={() => {
-            actions.updateWeeklyTemplate({
-              directions: splitLines(directions),
-              riskScenarios: splitLines(risks),
-              communicationGoal: goal.trim(),
-              restPlan: restPlan.trim(),
-            })
-            runtime.notify('已保存。', 'success')
-          }}
-        >
-          保存
-        </button>
-      </Fold>
 
       <Fold title="专注阻断" count="安卓" desc="专注时把黑名单应用挡回来，只在安卓安装包里生效。">
         <Toggle checked={settings.appLockEnabled} onChange={(next) => actions.updateSettings({ appLockEnabled: next })}>
@@ -343,14 +300,6 @@ export function SettingsView({ life, runtime }: ViewProps) {
           </button>
         </p>
         {testNote ? <Note tone={testNote.tone}>{testNote.text}</Note> : null}
-      </Fold>
-
-      <Fold title="核心原则" count="固定内置" desc="不可修改，作为行为参考常驻。">
-        <ol className="principles">
-          {CORE_PRINCIPLES.map((principle) => (
-            <li key={principle}>{principle}</li>
-          ))}
-        </ol>
       </Fold>
 
       <Section>

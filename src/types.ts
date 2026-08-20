@@ -11,6 +11,8 @@ export interface TaskDefinition {
   id: string
   title: string
   kind: TaskKind
+  /** 「下一秒手放在哪」：normal 任务强制填写，创建今日副本时作为第一步。 */
+  nextStep?: string
   scheduleTime?: string
   deadlineDate?: string
   archived?: boolean
@@ -133,13 +135,6 @@ export interface DailyTemplate {
   relaxMinutes: number
 }
 
-export interface WeeklyTemplate {
-  directions: string[]
-  riskScenarios: string[]
-  communicationGoal: string
-  restPlan: string
-}
-
 export interface AppSettings {
   /** 强调色预设 id，见 ui/theme.ts 的 ACCENTS。 */
   theme: string
@@ -187,7 +182,6 @@ export interface LifeAppData {
   relaxWindows: RelaxWindow[]
   curiosityItems: CuriosityItem[]
   dailyTemplate: DailyTemplate
-  weeklyTemplate: WeeklyTemplate
   settings: AppSettings
   activeTimer: ActiveTimer | null
 }
