@@ -4,7 +4,6 @@ export type DifficultyType = 'too_big' | 'dont_know' | 'no_material' | 'resistan
 export type StateType = 'distracted' | 'delay' | 'tired' | 'irritable' | 'stuck' | 'numb_scroll'
 export type ResponseResult = 'better' | 'same' | 'worse'
 export type TimerMode = 'focus' | 'shortBreak'
-export type RelaxSourceType = 'focus' | 'task' | 'routine'
 export type TabKey = 'today' | 'pool' | 'templates' | 'review'
 
 export interface TaskDefinition {
@@ -44,13 +43,6 @@ export interface TodayItem {
   createdAt: string
 }
 
-export interface AvoidItem {
-  id: string
-  text: string
-  isDone: boolean
-  createdAt: string
-}
-
 export interface CuriosityItem {
   id: string
   text: string
@@ -62,7 +54,8 @@ export interface DailyReview {
   wins: string
   slips: string
   commonState: StateType | ''
-  tomorrow: string
+  /** 遗留字段：早期"明天第一步"单行输入留下的，表单已不再写入，只用于回看老记录。 */
+  tomorrow?: string
   tomorrowTop3?: string[]
   tomorrowTop3Steps?: string[]
   moodScore?: 1 | 2 | 3 | 4 | 5
@@ -72,9 +65,6 @@ export interface DailyReview {
 export interface DayPlan {
   dayKey: string
   todayItems: TodayItem[]
-  avoidItems: AvoidItem[]
-  communicationDone: boolean
-  communicationNote: string
   processNotes: string
   processNotesColor: string
   morningAnchorDone: boolean
@@ -113,26 +103,6 @@ export interface FocusSession {
   plannedMinutes: number
   status: 'completed' | 'cancelled'
   accomplishment?: string
-}
-
-export interface RelaxWindow {
-  id: string
-  dayKey: string
-  sourceType: RelaxSourceType
-  sourceId: string
-  minutes: number
-  recommendation: string
-  createdAt: string
-  expiresAt: string
-  used: boolean
-}
-
-export interface DailyTemplate {
-  topTaskSlots: number
-  routineSlots: number
-  avoidSlots: number
-  communicationPrompt: string
-  relaxMinutes: number
 }
 
 export interface AppSettings {
@@ -179,9 +149,7 @@ export interface LifeAppData {
   difficultyRecords: DifficultyRecord[]
   stateRecords: StateRecord[]
   focusSessions: FocusSession[]
-  relaxWindows: RelaxWindow[]
   curiosityItems: CuriosityItem[]
-  dailyTemplate: DailyTemplate
   settings: AppSettings
   activeTimer: ActiveTimer | null
 }
@@ -199,7 +167,8 @@ export interface ReviewInput {
   wins: string
   slips: string
   commonState: StateType | ''
-  tomorrow: string
+  /** 遗留字段：早期"明天第一步"单行输入留下的，表单已不再写入，只用于回看老记录。 */
+  tomorrow?: string
   tomorrowTop3?: string[]
   tomorrowTop3Steps?: string[]
   moodScore?: 1 | 2 | 3 | 4 | 5

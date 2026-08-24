@@ -92,19 +92,17 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
               <span className="ln-title">{task.title}</span>
               <em className="ln-meta">{task.deadlineDate ? `截止 ${formatDeadline(task.deadlineDate)}` : ''}</em>
               <span className="row">
-                <button type="button" className="link" onClick={() => actions.addTaskToToday(task.id)}>
-                  进今天
-                </button>
+                {/* 一天一件：从任务池出发只有一条路——把今天这一件换成它。开始永远在今天页那一步上。 */}
                 <button
                   type="button"
                   className="link"
                   onClick={() => {
-                    if (!actions.launchTaskDefinition(task.id)) return
+                    actions.focusOnTask(task.id)
                     goToTab('today')
-                    runtime.notify(`已开始「${task.title}」。`, 'success')
+                    runtime.notify(`今天这一件换成「${task.title}」。`, 'success')
                   }}
                 >
-                  直接开始
+                  换成今天这一件
                 </button>
                 <button type="button" className="icon-btn" aria-label="删除" onClick={() => remove(task.id, task.title)}>
                   ✕
@@ -113,7 +111,7 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
             </li>
           ))}
           {normals.length === 0 ? (
-            <Empty>先把能做的事列出来，再决定今天拉哪几件。填了截止日期的会每天自动进今天，直到做完。</Empty>
+            <Empty>先把能做的事列出来，今天只挑其中一件。填了截止日期的会每天自动进今天，直到做完。</Empty>
           ) : null}
         </ul>
       </Section>
@@ -125,16 +123,15 @@ export function PoolView({ life, runtime, goToTab }: ViewProps) {
               <span className="ln-title">{task.title}</span>
               <em className="ln-meta">{task.scheduleTime ?? '未设时间'}</em>
               <span className="row">
-                <button type="button" className="link" onClick={() => actions.addTaskToToday(task.id)}>
-                  进今天
-                </button>
                 <button type="button" className="icon-btn" aria-label="删除" onClick={() => remove(task.id, task.title)}>
                   ✕
                 </button>
               </span>
             </li>
           ))}
-          {routines.length === 0 ? <Empty>吃饭、休息、洗澡也是任务，它们是生活的骨架。</Empty> : null}
+          {routines.length === 0 ? (
+            <Empty>吃饭、休息、洗澡是生活的骨架。填了时间就到点提醒你，不进今天页占行、也不算进完成率。</Empty>
+          ) : null}
         </ul>
       </Section>
 

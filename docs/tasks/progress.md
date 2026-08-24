@@ -61,3 +61,25 @@ T0 工具链  ──→  S1 数据基建  ──┬──→ M5 核心原则
 - 2026-08-17 第五轮补刀：一屏减负 — test 42 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（区块说明改为「只在空状态/收起时出现」，日常三页常驻说明全删；删鼓励文案及其设置项、任务池建议行、页脚去复盘入口、任务行步数、PAGE_LEDE；已拆步骤的任务其「＋拆一步」退到 hover；清理失效样式 .quiet-row / .pill）
 - 2026-08-18 修掉设置页「Supabase 建表 SQL」的浏览器默认黑三角 — test 40 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（`details.mini > summary` 漏了 `list-style: none` + `::-webkit-details-marker` 隐藏，是全站唯一没被压掉原生 marker 的 details；顺手删掉上一轮随「核心原则」一起废弃的 `.principles` 样式）
 - 2026-08-17 一天一件改造 — test 40 passed（principles.test.ts 随模块一起删）/ typecheck 0 / lint 0 错(2 既有告警) / build 通过（`dailyTemplate.topTaskSlots` 默认 3→1 且旧快照强制回收到 1；晨间锚点/复盘"明日"表单改单槽位；新增 `TaskDefinition.nextStep` 强制字段，任务池/今天快速加一件/晨间锚点三处入口校验非空，主屏展示改为"下一秒手放哪"而非标题；今天页主线收成单一进行中项，其余待做+任务池未启动任务收进新增的「今天不做」摩擦折叠区（`Fold` 新增 `friction` prop，两次点击才展开）；设置页删「本周模板」「核心原则」两个折叠区与「今日几件事」输入框，连带删除 `WeeklyTemplate` 类型/`updateWeeklyTemplate` action/`lib/principles.ts`）
+- 2026-08-24 夜间：设计理念连贯性整改（第二轮一天一件）— test 47 passed / typecheck 0 / lint 0 错(2 既有告警) / build 通过（详见 `CONTEXT.md` 最近变更；新增 `src/__tests__/today.flow.test.tsx` 全流程护栏 6 条）
+
+## 待提交 Git（夜间模式累积，等用户裁决后再提交）
+
+本轮所有改动都在一个主题下，建议一次提交：
+
+```
+refactor: 一天一件第二轮——把「今天」页的设计理念拉回一致
+
+改：单一开始入口（只开当前那一步）、「今天不做」从只读改成唯一的「换上来」、
+    生活类退出今天页改由到点提醒就地打勾、删「边界」/放松窗口/今日模板/
+    「今天和人认真聊过」/任务池两个并行入口。
+```
+
+改动文件：
+- `src/types.ts`、`src/lib/{defaults,storage,stats,report,feishu}.ts`
+- `src/hooks/useLifeApp.ts`、`src/app/useAppRuntime.ts`、`src/App.tsx`
+- `src/views/{TodayView,PoolView,ReviewView,SettingsView}.tsx`、`src/index.css`
+- `src/__tests__/today.flow.test.tsx`（新增）、`src/__tests__/app.render.test.tsx`
+- `src/lib/__tests__/{s1-data,review,stats}.test.ts`、`src/hooks/__tests__/useLifeApp.morningAnchor.test.ts`
+- `docs/{data-api,pages,PRD,detailed-design,reward-mechanism}.md`、`CONTEXT.md`、`docs/tasks/progress.md`
+

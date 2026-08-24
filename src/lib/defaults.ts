@@ -7,6 +7,7 @@ import {
   type StateType,
   type TaskDefinition,
   type TaskKind,
+  type TodayItem,
 } from '../types'
 
 export const STORAGE_KEY = 'life-app-v1'
@@ -58,17 +59,29 @@ export function currentDayKey(): string {
   return dayjs().format('YYYY-MM-DD')
 }
 
-export function createTaskDefinition(title: string, kind: TaskKind, scheduleTime?: string): TaskDefinition {
+export function createTaskDefinition(
+  title: string,
+  kind: TaskKind,
+  scheduleTime?: string,
+  nextStep?: string,
+): TaskDefinition {
   return {
     id: createId('task'),
     title,
     kind,
+    nextStep: kind === 'normal' ? nextStep?.trim() || undefined : undefined,
     scheduleTime,
     createdAt: new Date().toISOString(),
   }
 }
 
-function createTodayItemFromTask(task: TaskDefinition, order: number) {
+/**
+ * 任务池里的一条 → 今天的一条。
+ * 维护类（routine）不带步骤：它没有"做不做"的决策余地，到点提醒直接了结，
+ * 不进主线、不占步骤、不计入完成率（见《自律 App 设计要点》第 3 条）。
+ * 主动任务把「下一秒手放在哪」直接落成第一步——主屏显示的就是这一句。
+ */
+export function createTodayItemFromTask(task: TaskDefinition, order: number): TodayItem {
   return {
     id: createId('today'),
     sourceTaskId: task.id,
@@ -77,25 +90,16 @@ function createTodayItemFromTask(task: TaskDefinition, order: number) {
     isDone: false,
     order,
     steps:
-      task.kind === 'routine'
+      task.kind === 'normal' && task.nextStep?.trim()
         ? [
             {
               id: createId('step'),
-              title: `完成：${task.title}`,
+              title: task.nextStep.trim(),
               isDone: false,
               completedAt: undefined,
             },
           ]
-        : task.nextStep?.trim()
-          ? [
-              {
-                id: createId('step'),
-                title: task.nextStep.trim(),
-                isDone: false,
-                completedAt: undefined,
-              },
-            ]
-          : [],
+        : [],
     createdAt: new Date().toISOString(),
   }
 }
@@ -119,7 +123,7 @@ export function defaultTaskDefs(): TaskDefinition[] {
     createTaskDefinition('休息走动 10 分钟', 'routine', '16:00'),
     createTaskDefinition('洗澡', 'routine', '22:30'),
     createTaskDefinition('洗衣服', 'routine', '21:00'),
-    createTaskDefinition('把今天最重要的事推进一小步', 'normal'),
+    createTaskDefinition('把今天最重要的事推进一小步', 'normal', undefined, '打开要做的那个文件，看一眼上次停在哪'),
   ]
 }
 
@@ -154,9 +158,9 @@ export function defaultRuleDefs(): RuleDefinition[] {
 }
 
 export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefinition[] = defaultTaskDefs()): DayPlan {
+  // 所有维护类都建今日副本：它们不上主线也不计完成率，只是给到点提醒一个可以打勾的落点。
   const routines = taskDefs
     .filter((task) => task.kind === 'routine' && !task.archived)
-    .slice(0, 2)
     .map((task, index) => createTodayItemFromTask(task, index + 1))
 
   const deadlineTasks = taskDefs
@@ -167,9 +171,6 @@ export function createEmptyDayPlan(dayKey = currentDayKey(), taskDefs: TaskDefin
   return {
     dayKey,
     todayItems: [...routines, ...deadlineTasks],
-    avoidItems: [],
-    communicationDone: false,
-    communicationNote: '',
     processNotes: '',
       processNotesColor: '#1f2937',
     morningAnchorDone: false,
@@ -191,15 +192,7 @@ export function defaultData(): LifeAppData {
     difficultyRecords: [],
     stateRecords: [],
     focusSessions: [],
-    relaxWindows: [],
     curiosityItems: [],
-    dailyTemplate: {
-      topTaskSlots: 1,
-      routineSlots: 2,
-      avoidSlots: 1,
-      communicationPrompt: '今天和一个人认真交流一次。',
-      relaxMinutes: 15,
-    },
     settings: {
       theme: 'default',
       appearance: 'auto',
@@ -255,8 +248,6 @@ export function dayPlanHasRecord(data: LifeAppData, dayKey: string): boolean {
   if (plan.review) return true
   if (plan.processNotes?.trim()) return true
   if (plan.morningAnchorDone) return true
-  if (plan.communicationDone || plan.communicationNote?.trim()) return true
-  if (plan.avoidItems.length > 0) return true
   if (plan.todayItems.some((item) => item.isDone || item.steps.some((step) => step.isDone))) return true
 
   if (data.difficultyRecords.some((record) => record.dayKey === dayKey)) return true
@@ -278,11 +269,9 @@ export function pruneEmptyDays(data: LifeAppData, today = currentDayKey()): Life
     }
   }
 
-  const keptKeys = new Set(Object.keys(dayPlans))
+  // 被删掉的空白天不会有困难/状态/番茄记录，所以这些数组无需再过滤。
   return {
     ...data,
     dayPlans,
-    // 被删掉的空白天不会有困难/状态/番茄记录，所以这些数组无需再过滤；只清理对应的放松窗口。
-    relaxWindows: data.relaxWindows.filter((window) => keptKeys.has(window.dayKey)),
   }
 }

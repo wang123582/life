@@ -26,6 +26,15 @@ export interface Flash {
   tone: FlashTone
 }
 
+/**
+ * 情境提醒。生活类（维护任务）不再在今天页占一行，到点就靠这条提醒直接了结——
+ * 所以它必须带上可以就地打勾的那条今日副本 id，否则提醒完了没有落点。
+ */
+export interface Reminder {
+  message: string
+  itemId?: string
+}
+
 const MOBILE_QUERY = '(max-width: 900px)'
 
 /**
@@ -39,7 +48,7 @@ export function useAppRuntime(life: LifeApp, options: { onFocusTimerEnded: () =>
 
   const [isMobile, setIsMobile] = useState<boolean>(() => window.matchMedia(MOBILE_QUERY).matches)
   const [flash, setFlash] = useState<Flash | null>(null)
-  const [reminder, setReminder] = useState('')
+  const [reminder, setReminder] = useState<Reminder | null>(null)
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [isStandalone, setIsStandalone] = useState<boolean>(() => window.matchMedia('(display-mode: standalone)').matches)
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() =>
@@ -269,10 +278,10 @@ export function useAppRuntime(life: LifeApp, options: { onFocusTimerEnded: () =>
   const primaryPending = life.pendingTodayItems.find((item) => item.kind !== 'routine')
 
   useEffect(() => {
-    const emit = (key: string, message: string) => {
+    const emit = (key: string, message: string, itemId?: string) => {
       if (lastReminderKeyRef.current === key) return
       lastReminderKeyRef.current = key
-      setReminder(message)
+      setReminder({ message, itemId })
       playReminderSound()
       pushDesktop('life 提醒你一下', message)
     }
@@ -288,7 +297,8 @@ export function useAppRuntime(life: LifeApp, options: { onFocusTimerEnded: () =>
       )
 
       if (routine) {
-        emit(`routine-${dayKey}-${routine.id}-${hhmm}`, `到 ${routine.title} 了，先把生活的骨架守住。`)
+        const routineItem = dayPlan.todayItems.find((item) => item.sourceTaskId === routine.id)
+        emit(`routine-${dayKey}-${routine.id}-${hhmm}`, `到 ${routine.title} 了，先把生活的骨架守住。`, routineItem?.id)
         return
       }
 
@@ -432,7 +442,13 @@ export function useAppRuntime(life: LifeApp, options: { onFocusTimerEnded: () =>
         ? '浏览器已拒绝提醒，需要在站点权限里重新允许。'
         : '还没拿到电脑消息提醒权限。'
 
-  const dismissReminder = useCallback(() => setReminder(''), [])
+  const dismissReminder = useCallback(() => setReminder(null), [])
+
+  /** 生活类提醒上的「做完了」：就地勾掉，不用再回页面找一行来打勾。 */
+  const completeReminder = useCallback(() => {
+    if (reminder?.itemId) actions.toggleTodayItemDone(reminder.itemId)
+    setReminder(null)
+  }, [actions, reminder])
 
   return {
     isMobile,
@@ -441,6 +457,7 @@ export function useAppRuntime(life: LifeApp, options: { onFocusTimerEnded: () =>
     notify,
     reminder,
     dismissReminder,
+    completeReminder,
     desktop: {
       supported: desktopSupported,
       active: desktopActive,

@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dayjs from 'dayjs'
-import { createEmptyDayPlan, createId, currentDayKey, defaultData, ensureDayPlan } from '../lib/defaults'
+import {
+  createEmptyDayPlan,
+  createId,
+  createTodayItemFromTask,
+  currentDayKey,
+  defaultData,
+  ensureDayPlan,
+} from '../lib/defaults'
 import { parseQuickTaskInput } from '../lib/quickCapture'
 import { loadData, saveData } from '../lib/storage'
 import { isSyncEnvReady, pullRemoteSnapshot, pushRemoteSnapshot } from '../lib/sync'
@@ -11,7 +18,6 @@ import type {
   FinishTimerPayload,
   FocusSession,
   LifeAppData,
-  RelaxWindow,
   ReviewInput,
   RuleType,
   StateRecord,
@@ -22,12 +28,6 @@ import type {
   TodayItem,
 } from '../types'
 
-const relaxRecommendations = [
-  '做得不错，去看 30 分钟影视解说放松一下。',
-  '这轮已经推进了，听 15 分钟轻松内容，再回来继续。',
-  '可以出去走走，或者看点轻松内容，但记得回来。',
-]
-
 function clonePlan(plan: ReturnType<typeof createEmptyDayPlan>) {
   return {
     ...plan,
@@ -35,64 +35,7 @@ function clonePlan(plan: ReturnType<typeof createEmptyDayPlan>) {
       ...item,
       steps: item.steps.map((step) => ({ ...step })),
     })),
-    avoidItems: plan.avoidItems.map((item) => ({ ...item })),
     review: plan.review ? { ...plan.review } : null,
-  }
-}
-
-function randomRecommendation(): string {
-  return relaxRecommendations[Math.floor(Math.random() * relaxRecommendations.length)]
-}
-
-function appendRelaxWindow(data: LifeAppData, sourceType: RelaxWindow['sourceType'], sourceId: string): LifeAppData {
-  const dayKey = currentDayKey()
-  const relaxWindow: RelaxWindow = {
-    id: createId('relax'),
-    dayKey,
-    sourceType,
-    sourceId,
-    minutes: data.dailyTemplate.relaxMinutes,
-    recommendation: randomRecommendation(),
-    createdAt: new Date().toISOString(),
-    expiresAt: dayjs().add(data.dailyTemplate.relaxMinutes, 'minute').toISOString(),
-    used: false,
-  }
-
-  return {
-    ...data,
-    relaxWindows: [relaxWindow, ...data.relaxWindows],
-  }
-}
-
-function createTodayItemFromTask(task: TaskDefinition, order: number): TodayItem {
-  return {
-    id: createId('today'),
-    sourceTaskId: task.id,
-    title: task.title,
-    kind: task.kind,
-    isDone: false,
-    order,
-    steps:
-      task.kind === 'routine'
-        ? [
-            {
-              id: createId('step'),
-              title: `完成：${task.title}`,
-              isDone: false,
-              completedAt: undefined,
-            },
-          ]
-        : task.nextStep?.trim()
-          ? [
-              {
-                id: createId('step'),
-                title: task.nextStep.trim(),
-                isDone: false,
-                completedAt: undefined,
-              },
-            ]
-          : [],
-    createdAt: new Date().toISOString(),
   }
 }
 
@@ -102,8 +45,14 @@ function getForcedDeadlineTasks(taskDefs: TaskDefinition[]): TaskDefinition[] {
     .sort((left, right) => dayjs(left.deadlineDate).valueOf() - dayjs(right.deadlineDate).valueOf())
 }
 
-function syncDeadlineTasksIntoPlan(plan: DayPlan, taskDefs: TaskDefinition[]): DayPlan {
-  const forcedTasks = getForcedDeadlineTasks(taskDefs)
+/**
+ * 每天自动补齐的两类今日副本：
+ * - 维护类（生活）：不上主线、不计完成率，只是给到点提醒一个能打勾的落点；
+ * - 填了截止日期的主动任务：到期前每天都要出现，直到做完。
+ */
+function syncForcedTasksIntoPlan(plan: DayPlan, taskDefs: TaskDefinition[]): DayPlan {
+  const routines = taskDefs.filter((task) => task.kind === 'routine' && !task.archived)
+  const forcedTasks = [...routines, ...getForcedDeadlineTasks(taskDefs)]
 
   if (forcedTasks.length === 0) {
     return plan
@@ -126,14 +75,14 @@ function syncDeadlineTasksIntoPlan(plan: DayPlan, taskDefs: TaskDefinition[]): D
   }
 }
 
-function syncDeadlineTasksForDay(data: LifeAppData, dayKey: string): LifeAppData {
+function syncForcedTasksForDay(data: LifeAppData, dayKey: string): LifeAppData {
   const plan = data.dayPlans[dayKey]
 
   if (!plan) {
     return data
   }
 
-  const syncedPlan = syncDeadlineTasksIntoPlan(plan, data.taskDefs)
+  const syncedPlan = syncForcedTasksIntoPlan(plan, data.taskDefs)
 
   if (syncedPlan === plan) {
     return data
@@ -194,7 +143,7 @@ export function useLifeApp() {
   useEffect(() => {
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
-      const synced = syncDeadlineTasksForDay(next, dayKey)
+      const synced = syncForcedTasksForDay(next, dayKey)
 
       return synced === next ? next : stampData(synced)
     })
@@ -204,9 +153,8 @@ export function useLifeApp() {
     saveData(data)
   }, [data])
 
-  const safeData = useMemo(() => syncDeadlineTasksForDay(ensureDayPlan(data, dayKey), dayKey), [data, dayKey])
+  const safeData = useMemo(() => syncForcedTasksForDay(ensureDayPlan(data, dayKey), dayKey), [data, dayKey])
   const dayPlan = safeData.dayPlans[dayKey] ?? createEmptyDayPlan(dayKey, safeData.taskDefs)
-  const activeRelaxWindow = safeData.relaxWindows.find((window) => !window.used && dayjs(window.expiresAt).isAfter(dayjs()))
   const syncReady = Boolean(safeData.settings.syncEnabled && safeData.settings.syncSpaceId.trim() && isSyncEnvReady())
 
   const updateDayPlan = (updater: (plan: typeof dayPlan) => typeof dayPlan) => {
@@ -317,15 +265,16 @@ export function useLifeApp() {
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
       const nextTaskDefs = [task, ...next.taskDefs]
-      const nextPlan = task.deadlineDate ? syncDeadlineTasksIntoPlan(clonePlan(next.dayPlans[dayKey]), nextTaskDefs) : next.dayPlans[dayKey]
+      // 维护类和有截止日期的任务都会自动进今天：前者要给到点提醒一个落点，后者到期前每天都得出现。
+      const isForced = task.kind === 'routine' || Boolean(task.deadlineDate)
 
       return stampData({
         ...next,
         taskDefs: nextTaskDefs,
-        dayPlans: task.deadlineDate
+        dayPlans: isForced
           ? {
               ...next.dayPlans,
-              [dayKey]: nextPlan,
+              [dayKey]: syncForcedTasksIntoPlan(clonePlan(next.dayPlans[dayKey]), nextTaskDefs),
             }
           : next.dayPlans,
       })
@@ -344,6 +293,9 @@ export function useLifeApp() {
       id: createId('task'),
       title: cleanTitle,
       kind: 'normal',
+      // 写进任务定义，而不是只当今天的第一步——否则以后从任务池「直接开始」会丢掉这句，
+      // 退回到「先开始：xxx」的兜底文案。三个创建入口对这个字段必须同一个口径。
+      nextStep: cleanStep || undefined,
       createdAt: new Date().toISOString(),
     }
 
@@ -393,32 +345,28 @@ export function useLifeApp() {
     }
   }
 
-  const confirmMorningAnchor = (titles: string[], steps: string[] = []): string[] => {
-    const slots = safeData.dailyTemplate.topTaskSlots
-    // 标题与"预拆第一步"按下标对齐后再过滤空标题，保证步骤跟对任务。
-    const cleaned = titles
-      .map((title, index) => ({ title: title.trim(), step: steps[index]?.trim() ?? '' }))
-      .filter((entry) => entry.title)
-      .slice(0, Math.max(slots, 0))
-    const now = new Date().toISOString()
+  /**
+   * 晨间锚点：一天只锚一件事。标题和「下一秒手放在哪」都必须有，
+   * 建的 taskDef 也带上 nextStep——和任务池「加一件」、今天页「快速加一件」同一个口径。
+   */
+  const confirmMorningAnchor = (title: string, step: string): string | null => {
+    const cleanTitle = title.trim()
+    const cleanStep = step.trim()
+    if (!cleanTitle || !cleanStep) return null
 
-    // 复用任务池机制：每件事建一个正常 taskDef，再放进今天，保持与其它任务一致。
-    // 先在外面建好，便于把新任务的 todayItem id 返回给 UI（确认后直接跳到拆解阶段）。
-    const created = cleaned.map(({ title, step }) => {
-      const taskId = createId('task')
-      const task: TaskDefinition = { id: taskId, title, kind: 'normal', createdAt: now }
-      const item: TodayItem = {
-        id: createId('today'),
-        sourceTaskId: taskId,
-        title,
-        kind: 'normal',
-        isDone: false,
-        order: 0,
-        steps: step ? [{ id: createId('step'), title: step, isDone: false }] : [],
-        createdAt: now,
-      }
-      return { task, item }
-    })
+    const now = new Date().toISOString()
+    const taskId = createId('task')
+    const task: TaskDefinition = { id: taskId, title: cleanTitle, kind: 'normal', nextStep: cleanStep, createdAt: now }
+    const item: TodayItem = {
+      id: createId('today'),
+      sourceTaskId: taskId,
+      title: cleanTitle,
+      kind: 'normal',
+      isDone: false,
+      order: 0,
+      steps: [{ id: createId('step'), title: cleanStep, isDone: false }],
+      createdAt: now,
+    }
 
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
@@ -426,12 +374,13 @@ export function useLifeApp() {
 
       return stampData({
         ...next,
-        taskDefs: [...created.map((entry) => entry.task), ...next.taskDefs],
+        taskDefs: [task, ...next.taskDefs],
         dayPlans: {
           ...next.dayPlans,
           [dayKey]: {
             ...plan,
-            todayItems: [...plan.todayItems, ...created.map((entry) => entry.item)].map((item, index) => ({ ...item, order: index + 1 })),
+            // 锚定这一件排在最前，直接成为主线。
+            todayItems: [item, ...plan.todayItems].map((entry, index) => ({ ...entry, order: index + 1 })),
             morningAnchorDone: true,
             morningAnchorAt: now,
           },
@@ -439,7 +388,7 @@ export function useLifeApp() {
       })
     })
 
-    return created.map((entry) => entry.item.id)
+    return item.id
   }
 
   const resetMorningAnchor = () => {
@@ -448,100 +397,6 @@ export function useLifeApp() {
       morningAnchorDone: false,
       morningAnchorAt: undefined,
     }))
-  }
-
-  const addTaskToToday = (taskId: string) => {
-    const task = safeData.taskDefs.find((item) => item.id === taskId && !item.archived)
-    if (!task) return
-
-    updateDayPlan((plan) => {
-      const existing = plan.todayItems.find((item) => item.sourceTaskId === taskId && !item.isDone)
-      if (existing) return plan
-
-      const newItem = createTodayItemFromTask(task, plan.todayItems.length + 1)
-
-      return {
-        ...plan,
-        todayItems: [...plan.todayItems, newItem],
-      }
-    })
-  }
-
-  const launchTaskDefinition = (taskId: string) => {
-    const task = safeData.taskDefs.find((item) => item.id === taskId && !item.archived)
-    if (!task) return null
-
-    const currentPlan = ensureDayPlan(safeData, dayKey).dayPlans[dayKey]
-    const existing = currentPlan.todayItems.find((item) => item.sourceTaskId === taskId && !item.isDone)
-    const existingPendingStep = existing?.steps.find((step) => !step.isDone)
-    const shouldCreateStarterStep = task.kind === 'normal' && (!existing || existing.steps.length === 0)
-    const todayItemId = existing?.id ?? createId('today')
-    const starterStepId = existingPendingStep?.id ?? (shouldCreateStarterStep ? createId('step') : undefined)
-    const starterStepTitle = shouldCreateStarterStep ? task.nextStep?.trim() || `先开始：${task.title}` : undefined
-
-    setData((prev) => {
-      const next = ensureDayPlan(prev, dayKey)
-      const plan = clonePlan(next.dayPlans[dayKey])
-
-      if (!existing) {
-        plan.todayItems = [
-          ...plan.todayItems,
-          {
-            ...createTodayItemFromTask(task, plan.todayItems.length + 1),
-            id: todayItemId,
-            steps: starterStepId && starterStepTitle
-              ? [
-                  {
-                    id: starterStepId,
-                    title: starterStepTitle,
-                    isDone: false,
-                    completedAt: undefined,
-                  },
-                ]
-              : [],
-          },
-        ]
-      } else if (starterStepId && starterStepTitle) {
-        plan.todayItems = plan.todayItems.map((item) =>
-          item.id === existing.id
-            ? {
-                ...item,
-                steps: [
-                  ...item.steps,
-                  {
-                    id: starterStepId,
-                    title: starterStepTitle,
-                    isDone: false,
-                    completedAt: undefined,
-                  },
-                ],
-              }
-            : item,
-        )
-      }
-
-      return stampData({
-        ...next,
-        dayPlans: {
-          ...next.dayPlans,
-          [dayKey]: plan,
-        },
-        activeTimer: {
-          mode: 'focus',
-          dayItemId: todayItemId,
-          stepId: starterStepId,
-          startedAt: new Date().toISOString(),
-          durationMinutes: next.settings.focusMinutes,
-        },
-      })
-    })
-
-    return {
-      todayItemId,
-      stepId: starterStepId,
-      createdTodayItem: !existing,
-      createdStep: !existingPendingStep && Boolean(starterStepId),
-    }
   }
 
   const removeTaskDefinition = (taskId: string) => {
@@ -584,14 +439,12 @@ export function useLifeApp() {
     setData((prev) => {
       const next = ensureDayPlan(prev, dayKey)
       const plan = clonePlan(next.dayPlans[dayKey])
-      let changedSource: TodayItem | undefined
       let updatedItem: TodayItem | undefined
       const now = new Date().toISOString()
 
       plan.todayItems = plan.todayItems.map((item) => {
         if (item.id !== itemId) return item
 
-        changedSource = { ...item }
         const isDone = !item.isDone
         const steps = item.steps.length === 0
           ? item.steps
@@ -618,13 +471,41 @@ export function useLifeApp() {
         },
       })
 
-      if (changedSource && !changedSource.isDone) {
-        updated = appendRelaxWindow(updated, changedSource.kind === 'routine' ? 'routine' : 'task', changedSource.id)
-      }
-
       updated = syncDeadlineTaskCompletion(updated, updatedItem)
 
       return updated
+    })
+  }
+
+  /**
+   * 换主线：把目标那件事挪到所有「未完成的主动任务」之前，它就是今天这一件。
+   * 「今天不做」里唯一允许的动作就是它——不是同时做两件，是换掉。
+   */
+  function promoteInPlan(plan: DayPlan, target: TodayItem): DayPlan {
+    const rest = plan.todayItems.filter((item) => item.id !== target.id)
+    const firstPending = rest.findIndex((item) => item.kind !== 'routine' && !item.isDone)
+    const insertAt = firstPending < 0 ? rest.length : firstPending
+    const items = [...rest.slice(0, insertAt), target, ...rest.slice(insertAt)]
+
+    return { ...plan, todayItems: items.map((item, index) => ({ ...item, order: index + 1 })) }
+  }
+
+  const focusOnTodayItem = (itemId: string) => {
+    updateDayPlan((plan) => {
+      const target = plan.todayItems.find((item) => item.id === itemId)
+      if (!target || target.kind === 'routine' || target.isDone) return plan
+      return promoteInPlan(plan, target)
+    })
+  }
+
+  const focusOnTask = (taskId: string) => {
+    const task = safeData.taskDefs.find((item) => item.id === taskId && !item.archived)
+    if (!task || task.kind === 'routine') return
+
+    updateDayPlan((plan) => {
+      const existing = plan.todayItems.find((item) => item.sourceTaskId === taskId && !item.isDone)
+      const target = existing ?? createTodayItemFromTask(task, plan.todayItems.length + 1)
+      return promoteInPlan(plan, target)
     })
   }
 
@@ -635,25 +516,6 @@ export function useLifeApp() {
         .filter((item) => item.id !== itemId)
         .map((item, index) => ({ ...item, order: index + 1 })),
     }))
-  }
-
-  const moveTodayItem = (itemId: string, direction: -1 | 1) => {
-    updateDayPlan((plan) => {
-      const index = plan.todayItems.findIndex((item) => item.id === itemId)
-      const targetIndex = index + direction
-      if (index < 0 || targetIndex < 0 || targetIndex >= plan.todayItems.length) {
-        return plan
-      }
-
-      const items = [...plan.todayItems]
-      const [moved] = items.splice(index, 1)
-      items.splice(targetIndex, 0, moved)
-
-      return {
-        ...plan,
-        todayItems: items.map((item, idx) => ({ ...item, order: idx + 1 })),
-      }
-    })
   }
 
   const addStep = (todayItemId: string, title: string) => {
@@ -741,39 +603,6 @@ export function useLifeApp() {
     })
   }
 
-  const addAvoidItem = (text: string) => {
-    const cleanText = text.trim()
-    if (!cleanText) return
-
-    updateDayPlan((plan) => ({
-      ...plan,
-      avoidItems: [
-        ...plan.avoidItems,
-        {
-          id: createId('avoid'),
-          text: cleanText,
-          isDone: false,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    }))
-  }
-
-  const toggleAvoidDone = (avoidId: string) => {
-    updateDayPlan((plan) => ({
-      ...plan,
-      avoidItems: plan.avoidItems.map((item) => (item.id === avoidId ? { ...item, isDone: !item.isDone } : item)),
-    }))
-  }
-
-  const setCommunication = (done: boolean, note: string) => {
-    updateDayPlan((plan) => ({
-      ...plan,
-      communicationDone: done,
-      communicationNote: note,
-    }))
-  }
-
   const addStateRecord = (stateType: StateType, trigger: string, response: string, result: StateRecord['result']) => {
     const record: StateRecord = {
       id: createId('state'),
@@ -850,16 +679,6 @@ export function useLifeApp() {
     setData((prev) => stampData({
       ...prev,
       curiosityItems: prev.curiosityItems.map((item) => (item.id === id ? { ...item, archived: true } : item)),
-    }))
-  }
-
-  const updateDailyTemplate = (payload: Partial<LifeAppData['dailyTemplate']>) => {
-    setData((prev) => ({
-      ...stampData(prev),
-      dailyTemplate: {
-        ...prev.dailyTemplate,
-        ...payload,
-      },
     }))
   }
 
@@ -1051,17 +870,12 @@ export function useLifeApp() {
     })
   }
 
-  const consumeRelaxWindow = (windowId: string) => {
-    setData((prev) => ({
-      ...stampData(prev),
-      relaxWindows: prev.relaxWindows.map((item) => (item.id === windowId ? { ...item, used: true } : item)),
-    }))
-  }
-
   const saveReview = (payload: ReviewInput) => {
     updateDayPlan((plan) => ({
       ...plan,
       review: {
+        // 先摊开旧记录，保住 tomorrow 这类表单已不再写入的遗留字段。
+        ...plan.review,
         ...payload,
         updatedAt: new Date().toISOString(),
       },
@@ -1170,7 +984,6 @@ export function useLifeApp() {
     dayPlan,
     pendingTodayItems,
     isMorningAnchorPending,
-    activeRelaxWindow,
     todayDifficultyRecords,
     todayStateRecords,
     todayFocusSessions,
@@ -1187,18 +1000,14 @@ export function useLifeApp() {
       quickStartTodayTask,
       confirmMorningAnchor,
       resetMorningAnchor,
-      addTaskToToday,
-      launchTaskDefinition,
+      focusOnTodayItem,
+      focusOnTask,
       removeTaskDefinition,
       toggleTodayItemDone,
       removeTodayItem,
-      moveTodayItem,
       addStep,
       removeStep,
       toggleStepDone,
-      addAvoidItem,
-      toggleAvoidDone,
-      setCommunication,
       addStateRecord,
       addRuleDefinition,
       removeRuleDefinition,
@@ -1206,13 +1015,11 @@ export function useLifeApp() {
       addCuriosityItem,
       removeCuriosityItem,
       archiveCuriosityItem,
-      updateDailyTemplate,
       updateSettings,
       startFocusTimer,
       cancelTimer,
       finishBreakTimer,
       finishTimer,
-      consumeRelaxWindow,
       saveReview,
       updateProcessNotes,
       updateProcessNotesColor,

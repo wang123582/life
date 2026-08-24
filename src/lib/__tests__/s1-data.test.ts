@@ -77,8 +77,11 @@ describe('S1 loadData backward compatibility', () => {
     expect(loaded.dayPlans[todayKey].morningAnchorDone).toBe(false)
     // existing values preserved
     expect(loaded.settings.focusMinutes).toBe(25)
-    // 一天一件不可配置：旧快照存的 3 也会被强制拉回 1
-    expect(loaded.dailyTemplate.topTaskSlots).toBe(1)
+    // 已删功能的字段不会跟着旧快照活下来（loadData 逐字段挑选）
+    expect('dailyTemplate' in loaded).toBe(false)
+    expect('relaxWindows' in loaded).toBe(false)
+    expect('avoidItems' in loaded.dayPlans[todayKey]).toBe(false)
+    expect('communicationDone' in loaded.dayPlans[todayKey]).toBe(false)
   })
 
   it('returns defaults when storage is empty', () => {
@@ -95,9 +98,6 @@ describe('S1 pruneEmptyDays', () => {
     ...base.dayPlans[today],
     dayKey: key,
     todayItems: [],
-    avoidItems: [],
-    communicationDone: false,
-    communicationNote: '',
     processNotes: '',
     morningAnchorDone: false,
     review: null,

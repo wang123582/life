@@ -22,7 +22,9 @@ function isEffectiveFocus(session: FocusSession): boolean {
 
 function statForDay(data: LifeAppData, dayKey: string): DayStat {
   const plan = data.dayPlans[dayKey]
-  const todayItems = plan?.todayItems ?? []
+  // 维护类（吃饭、洗澡这些）不计入完成率：它们没有"做不做"的决策余地，
+  // 混进分母只会让"今天完成了多少"这个数字失去意义（《自律 App 设计要点》第 3 条）。
+  const todayItems = (plan?.todayItems ?? []).filter((item) => item.kind !== 'routine')
   const focusCount = data.focusSessions.filter((s) => s.dayKey === dayKey && isEffectiveFocus(s)).length
 
   return {

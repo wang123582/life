@@ -1,5 +1,9 @@
 # 数据模型与 API 草案
 
+> **2026-08-24 更新**：一天一件改造的第二轮把「边界清单」「今天和人认真聊过」「放松窗口」
+> 「今日模板」四组数据删掉了（理由见 `CONTEXT.md` 最近变更）。本文已同步。
+> `loadData` 现在逐字段挑选，旧快照里这些键读一次就不再留存。
+
 ## 本地优先数据模型
 
 第一版使用本地存储，核心对象如下：
@@ -12,7 +16,9 @@
 - `id`
 - `title`
 - `kind`：`normal | routine`
-- `scheduleTime?`
+- `nextStep?`：「下一秒手放在哪」。`normal` 强制填写，建今日副本时落成第一步；`routine` 恒为空
+- `scheduleTime?`：`routine` 的提醒时刻
+- `deadlineDate?`
 - `archived?`
 - `createdAt`
 
@@ -23,9 +29,8 @@
 字段：
 - `dayKey`
 - `todayItems[]`
-- `avoidItems[]`
-- `communicationDone`
-- `communicationNote`
+- `processNotes` / `processNotesColor`
+- `morningAnchorDone` / `morningAnchorAt?`
 - `review`
 
 ### `TodayItem`
@@ -92,21 +97,6 @@
 - `plannedMinutes`
 - `status`
 
-### `RelaxWindow`
-
-放松窗口解锁记录。
-
-字段：
-- `id`
-- `dayKey`
-- `sourceType`
-- `sourceId`
-- `minutes`
-- `recommendation`
-- `createdAt`
-- `expiresAt`
-- `used`
-
 ## 当前持久化策略
 
 第一版采用 `localStorage` 保存完整数据树，便于快速交付。
@@ -149,12 +139,6 @@
 - `GET /v1/focus-sessions?dayKey=2026-04-30`
 - `POST /v1/focus-sessions`
 
-### 放松窗口
-
-- `GET /v1/relax-windows?dayKey=2026-04-30`
-- `POST /v1/relax-windows`
-- `PATCH /v1/relax-windows/:id`
-
 ## 同步策略建议
 
 当需要手机和电脑互通时，建议采用：
@@ -195,6 +179,6 @@
 - 番茄钟：已实现
 - 困难记录：已实现
 - 状态记录：已实现
-- 放松窗口：已实现
-- 模板：已实现基础结构
+- 放松窗口：**已删**（与番茄结束后的休息重复，且推荐"看影视解说"与专注阻断名单自相矛盾）
+- 模板：**已删**（一天一件不可配置，模板对象只剩死字段）
 - 同步 API：仅文档设计，未实现

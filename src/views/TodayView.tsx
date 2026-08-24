@@ -11,17 +11,17 @@ import type { StateType, TodayItem } from '../types'
 function AnchorGate({ life }: { life: ViewProps['life'] }) {
   const { data, dayKey, actions } = life
   const prefill = useMemo(() => getNextDayAnchorItems(data.dayPlans, dayKey), [data.dayPlans, dayKey])
-  const [inputs, setInputs] = useState<string[]>(() => prefill.map((item) => item.title))
-  const [steps, setSteps] = useState<string[]>(() => prefill.map((item) => item.step ?? ''))
+  const [title, setTitle] = useState(() => prefill[0]?.title ?? '')
+  const [step, setStep] = useState(() => prefill[0]?.step ?? '')
 
   useEffect(() => {
     if (prefill.length > 0) {
-      setInputs(prefill.map((item) => item.title))
-      setSteps(prefill.map((item) => item.step ?? ''))
+      setTitle(prefill[0].title)
+      setStep(prefill[0].step ?? '')
     }
   }, [prefill])
 
-  const canConfirm = inputs.some((text, index) => text?.trim() && steps[index]?.trim())
+  const canConfirm = Boolean(title.trim() && step.trim())
 
   return (
     <div className="gate">
@@ -31,43 +31,20 @@ function AnchorGate({ life }: { life: ViewProps['life'] }) {
         {prefill.length > 0 ? '昨晚已经写好了，确认就能开始。' : '写这一件，别的事今天不存在。确认之前，别的页面都进不去。'}
       </p>
 
-      <ol className="gate-list">
-        {Array.from({ length: data.dailyTemplate.topTaskSlots }).map((_, index) => (
-          <li key={index}>
-            <span>{index + 1}</span>
-            <div className="gate-fields">
-              <input
-                value={inputs[index] ?? ''}
-                placeholder="这一件是什么"
-                onChange={(event) =>
-                  setInputs((prev) => {
-                    const next = [...prev]
-                    next[index] = event.target.value
-                    return next
-                  })
-                }
-              />
-              <input
-                value={steps[index] ?? ''}
-                placeholder="下一秒手放在哪？填不出来就再拆一层"
-                onChange={(event) =>
-                  setSteps((prev) => {
-                    const next = [...prev]
-                    next[index] = event.target.value
-                    return next
-                  })
-                }
-              />
-            </div>
-          </li>
-        ))}
-      </ol>
+      <div className="gate-fields">
+        <input value={title} placeholder="这一件是什么" onChange={(event) => setTitle(event.target.value)} />
+        <input
+          value={step}
+          placeholder="下一秒手放在哪？填不出来就再拆一层"
+          onChange={(event) => setStep(event.target.value)}
+        />
+      </div>
 
       <button
         type="button"
         className="btn primary"
         disabled={!canConfirm}
-        onClick={() => actions.confirmMorningAnchor(inputs, steps)}
+        onClick={() => actions.confirmMorningAnchor(title, step)}
       >
         确认，开始今天
       </button>
@@ -76,7 +53,12 @@ function AnchorGate({ life }: { life: ViewProps['life'] }) {
   )
 }
 
-function TaskRow({ item, index, life }: { item: TodayItem; index: number; life: ViewProps['life'] }) {
+/**
+ * 主线那一件事。
+ * 屏幕上永远只显示「当前这一步」，勾的是它、开始的也是它——不再有"在大任务上开始"这条岔路。
+ * 还没拆出步骤时，页面上只给得出「＋ 拆一步」：填不出下一步就还不能开始。
+ */
+function TaskRow({ item, life }: { item: TodayItem; life: ViewProps['life'] }) {
   const { data, actions } = life
   const [adding, setAdding] = useState(false)
   const [showDone, setShowDone] = useState(false)
@@ -84,11 +66,10 @@ function TaskRow({ item, index, life }: { item: TodayItem; index: number; life: 
 
   const source = data.taskDefs.find((task) => task.id === item.sourceTaskId)
   const doneSteps = item.steps.filter((step) => step.isDone)
-  const openSteps = item.steps.filter((step) => !step.isDone)
-  const visibleSteps = showDone ? item.steps : openSteps
-  // 主屏显示的是「下一秒手放哪」，不是标题——标题降级为副行。
-  const leadStep = item.steps[0]
-  const primaryText = leadStep?.title || item.title
+  const currentStep = item.steps.find((step) => !step.isDone)
+  // 当前这一步已经写在主行了，列表里只放它后面的——同一句话不在页面上出现两次。
+  const restSteps = item.steps.filter((step) => step.id !== currentStep?.id && (showDone || !step.isDone))
+  const primaryText = currentStep?.title ?? item.title
 
   return (
     <li className={item.isDone ? 'entry done' : 'entry'}>
@@ -96,57 +77,47 @@ function TaskRow({ item, index, life }: { item: TodayItem; index: number; life: 
         <button
           type="button"
           className="box"
-          aria-label={item.isDone ? '取消完成' : '标记完成'}
-          onClick={() => actions.toggleTodayItemDone(item.id)}
+          aria-label={currentStep ? `完成「${currentStep.title}」` : item.isDone ? '取消完成' : '标记完成'}
+          onClick={() =>
+            currentStep ? actions.toggleStepDone(item.id, currentStep.id) : actions.toggleTodayItemDone(item.id)
+          }
         >
-          <span aria-hidden="true">{item.isDone ? '✓' : index}</span>
+          <span aria-hidden="true">{item.isDone ? '✓' : ''}</span>
         </button>
 
         <div className="row-text">
           <p className="row-title">{primaryText}</p>
-          {leadStep || source?.deadlineDate ? (
+          {currentStep || source?.deadlineDate ? (
             <p className="row-sub">
-              {leadStep ? item.title : ''}
-              {leadStep && source?.deadlineDate ? ' · ' : ''}
+              {currentStep ? item.title : ''}
+              {currentStep && source?.deadlineDate ? ' · ' : ''}
               {source?.deadlineDate ? `截止 ${formatDeadline(source.deadlineDate)}` : ''}
             </p>
           ) : null}
         </div>
 
         <div className="row-tools">
-          {!item.isDone ? (
-            <button type="button" className="btn primary sm" onClick={() => actions.startFocusTimer(item.id, openSteps[0]?.id)}>
-              专注
+          {currentStep ? (
+            <button type="button" className="btn primary sm" onClick={() => actions.startFocusTimer(item.id, currentStep.id)}>
+              开始
             </button>
           ) : null}
-          <button type="button" className="icon-btn" aria-label="上移" onClick={() => actions.moveTodayItem(item.id, -1)}>
-            ↑
-          </button>
-          <button type="button" className="icon-btn" aria-label="下移" onClick={() => actions.moveTodayItem(item.id, 1)}>
-            ↓
-          </button>
           <button type="button" className="icon-btn" aria-label="移出今天" onClick={() => actions.removeTodayItem(item.id)}>
             ✕
           </button>
         </div>
       </div>
 
-      {visibleSteps.length > 0 ? (
+      {restSteps.length > 0 ? (
         <ul className="steps">
-          {visibleSteps.map((step) => (
+          {restSteps.map((step) => (
             <li key={step.id} className={step.isDone ? 'done' : undefined}>
               <label>
                 <input type="checkbox" checked={step.isDone} onChange={() => actions.toggleStepDone(item.id, step.id)} />
                 <span>{step.title}</span>
               </label>
               <span className="step-tools">
-                {step.isDone ? (
-                  <em>{step.completedAt ? dayjs(step.completedAt).format('HH:mm') : ''}</em>
-                ) : (
-                  <button type="button" className="btn sm" onClick={() => actions.startFocusTimer(item.id, step.id)}>
-                    开始
-                  </button>
-                )}
+                {step.isDone ? <em>{step.completedAt ? dayjs(step.completedAt).format('HH:mm') : ''}</em> : null}
                 <button type="button" className="icon-btn" aria-label="删除" onClick={() => actions.removeStep(item.id, step.id)}>
                   ✕
                 </button>
@@ -168,7 +139,7 @@ function TaskRow({ item, index, life }: { item: TodayItem; index: number; life: 
             <input
               autoFocus
               value={stepInput}
-              placeholder="下一步做什么？"
+              placeholder={currentStep ? '再往后一步做什么？' : '下一秒手放在哪？填不出来就再拆一层'}
               onChange={(event) => setStepInput(event.target.value)}
               onBlur={() => !stepInput.trim() && setAdding(false)}
             />
@@ -272,17 +243,74 @@ function StuckDialog({ life, onClose }: { life: ViewProps['life']; onClose: () =
   )
 }
 
+/**
+ * 分叉收纳箱。主线没做完时只给一个输入框：写下来就回到当前这件事，
+ * 记了什么本身也看不见——可见就会被拉走（《自律 App 设计要点》第 4 条）。
+ * 主线做完了才把内容摊开供挑选。
+ */
+function CuriosityDialog({
+  life,
+  revealed,
+  onClose,
+}: {
+  life: ViewProps['life']
+  revealed: boolean
+  onClose: () => void
+}) {
+  const { data, actions } = life
+  const [text, setText] = useState('')
+  const open = data.curiosityItems.filter((item) => !item.archived)
+
+  return (
+    <Modal
+      title={revealed ? '好奇清单' : '记一笔'}
+      desc={revealed ? '今天这一件做完了，现在可以挑一个看。' : '写下来就放下它，回到当前这件事。等今天这一件做完再看。'}
+      onClose={onClose}
+    >
+      <form
+        className="add"
+        onSubmit={(event) => {
+          event.preventDefault()
+          actions.addCuriosityItem(text)
+          setText('')
+          if (!revealed) onClose()
+        }}
+      >
+        <input autoFocus value={text} placeholder="＋ 想看的、想查的" onChange={(event) => setText(event.target.value)} />
+      </form>
+
+      {revealed ? (
+        <ul className="lines">
+          {open.map((item) => (
+            <li key={item.id}>
+              <span className="ln-title">{item.text}</span>
+              <em className="ln-meta" />
+              <span className="row">
+                <button type="button" className="link" onClick={() => actions.archiveCuriosityItem(item.id)}>
+                  消化
+                </button>
+                <button type="button" className="icon-btn" aria-label="删除" onClick={() => actions.removeCuriosityItem(item.id)}>
+                  ✕
+                </button>
+              </span>
+            </li>
+          ))}
+          {open.length === 0 ? <Empty>还没有记。</Empty> : null}
+        </ul>
+      ) : null}
+    </Modal>
+  )
+}
+
 export function TodayView({ life, runtime, goToTab }: ViewProps) {
-  const { data, dayPlan, isMorningAnchorPending, activeRelaxWindow, actions } = life
+  const { data, dayPlan, isMorningAnchorPending, actions } = life
   const [quick, setQuick] = useState('')
   const [quickStep, setQuickStep] = useState('')
-  const [avoidText, setAvoidText] = useState('')
-  const [curiosity, setCuriosity] = useState('')
   const [showStuck, setShowStuck] = useState(false)
   const [showCuriosity, setShowCuriosity] = useState(false)
 
+  // 维护类（生活）不进主屏：它到点自己会来提醒，见 app/useAppRuntime 的情境提醒。
   const mainItems = dayPlan.todayItems.filter((item) => item.kind !== 'routine')
-  const mainDone = mainItems.filter((item) => item.isDone)
   const mainPending = mainItems.filter((item) => !item.isDone)
   // 主屏只留一件：其余待做的（deadline 自动同步、之前多加的）一律收进「今天不做」。
   const activeItem = mainPending[0]
@@ -290,31 +318,20 @@ export function TodayView({ life, runtime, goToTab }: ViewProps) {
   const backlogTasks = data.taskDefs.filter(
     (task) => task.kind === 'normal' && !task.archived && !mainItems.some((item) => item.sourceTaskId === task.id),
   )
-  const routines = dayPlan.todayItems.filter((item) => item.kind === 'routine')
-  const routinesDone = routines.filter((item) => item.isDone).length
-  const openCuriosity = data.curiosityItems.filter((item) => !item.archived)
+  // 今天这一件做完了，收纳箱才摊开。
+  const cleared = !activeItem && mainItems.length > 0
+
+  const swapIn = (title: string, run: () => void) => {
+    run()
+    runtime.notify(`今天这一件换成「${title}」。`, 'success')
+  }
 
   if (isMorningAnchorPending) return <AnchorGate life={life} />
 
   return (
     <>
-      {activeRelaxWindow ? (
-        <div className="banner">
-          <div>
-            <b>放松窗口 {activeRelaxWindow.minutes} 分钟</b>
-            <span>
-              {activeRelaxWindow.recommendation} 到 {dayjs(activeRelaxWindow.expiresAt).format('HH:mm')}。
-            </span>
-          </div>
-          <button type="button" className="btn sm" onClick={() => actions.consumeRelaxWindow(activeRelaxWindow.id)}>
-            去放松
-          </button>
-        </div>
-      ) : null}
-
       <Section
         title="主线"
-        count={mainDone.length > 0 ? `今天已完成 ${mainDone.length} 件` : undefined}
         actions={
           <button type="button" className="link" onClick={() => goToTab('pool')}>
             任务池 →
@@ -323,11 +340,13 @@ export function TodayView({ life, runtime, goToTab }: ViewProps) {
       >
         {activeItem ? (
           <ol className="rows">
-            <TaskRow item={activeItem} index={1} life={life} />
+            <TaskRow item={activeItem} life={life} />
           </ol>
-        ) : mainItems.length === 0 ? (
+        ) : cleared ? (
+          <Empty>今天这一件做完了。剩下的时间是你的——去复盘，或者从下面挑一件想看的。</Empty>
+        ) : (
           <Empty>今天还没有这一件。写一件，或从任务池挑——先拆一个能立刻动手的小步骤。</Empty>
-        ) : null}
+        )}
 
         <form
           className="add"
@@ -356,80 +375,44 @@ export function TodayView({ life, runtime, goToTab }: ViewProps) {
       </Section>
 
       {backlogItems.length > 0 || backlogTasks.length > 0 ? (
-        <Fold title="今天不做" count={backlogItems.length + backlogTasks.length} friction>
+        <Fold
+          title="今天不做"
+          count={backlogItems.length + backlogTasks.length}
+          desc="不是稍后，是今天不做。真要动它，只能把今天这一件换掉。"
+          friction
+        >
           <ul className="lines">
             {backlogItems.map((item) => (
               <li key={item.id}>
                 <span className="ln-title">{item.title}</span>
                 <em className="ln-meta" />
+                <span className="row">
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => swapIn(item.title, () => actions.focusOnTodayItem(item.id))}
+                  >
+                    换上来
+                  </button>
+                </span>
               </li>
             ))}
             {backlogTasks.map((task) => (
               <li key={task.id}>
                 <span className="ln-title">{task.title}</span>
                 <em className="ln-meta" />
+                <span className="row">
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => swapIn(task.title, () => actions.focusOnTask(task.id))}
+                  >
+                    换上来
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
-          <button type="button" className="link" onClick={() => goToTab('pool')}>
-            去任务池管理 →
-          </button>
-        </Fold>
-      ) : null}
-
-      <Section
-        title="边界"
-        count={`${dayPlan.avoidItems.filter((item) => item.isDone).length}/${dayPlan.avoidItems.length}`}
-      >
-        <div className="chips">
-          {dayPlan.avoidItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={item.isDone ? 'chip held' : 'chip'}
-              onClick={() => actions.toggleAvoidDone(item.id)}
-            >
-              {item.isDone ? '✓ ' : ''}
-              {item.text}
-            </button>
-          ))}
-          <form
-            className="chip-input"
-            onSubmit={(event) => {
-              event.preventDefault()
-              actions.addAvoidItem(avoidText)
-              setAvoidText('')
-            }}
-          >
-            <input value={avoidText} placeholder="＋ 今天不碰什么" onChange={(event) => setAvoidText(event.target.value)} />
-          </form>
-        </div>
-      </Section>
-
-      {routines.length > 0 ? (
-        <Fold
-          title="生活"
-          count={`${routinesDone}/${routines.length}`}
-          desc="到点了就勾掉。这是一天的骨架。"
-          open={routinesDone < routines.length}
-        >
-          <div className="chips">
-            {routines.map((item) => {
-              const source = data.taskDefs.find((task) => task.id === item.sourceTaskId)
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={item.isDone ? 'chip held' : 'chip'}
-                  onClick={() => actions.toggleTodayItemDone(item.id)}
-                >
-                  {item.isDone ? '✓ ' : ''}
-                  {item.title}
-                  {source?.scheduleTime ? <em>{source.scheduleTime}</em> : null}
-                </button>
-              )
-            })}
-          </div>
         </Fold>
       ) : null}
 
@@ -438,51 +421,12 @@ export function TodayView({ life, runtime, goToTab }: ViewProps) {
           卡住了
         </button>
         <button type="button" className="link" onClick={() => setShowCuriosity(true)}>
-          好奇清单{openCuriosity.length > 0 ? ` ${openCuriosity.length}` : ''}
+          {cleared ? `好奇清单 ${data.curiosityItems.filter((item) => !item.archived).length}` : '记一笔'}
         </button>
-        <label className="inline-check">
-          <input
-            type="checkbox"
-            checked={dayPlan.communicationDone}
-            onChange={(event) => actions.setCommunication(event.target.checked, dayPlan.communicationNote)}
-          />
-          今天和人认真聊过
-        </label>
       </footer>
 
       {showStuck ? <StuckDialog life={life} onClose={() => setShowStuck(false)} /> : null}
-
-      {showCuriosity ? (
-        <Modal title="好奇清单" desc="零散兴趣先记下来，等放松窗口再看。" onClose={() => setShowCuriosity(false)}>
-          <form
-            className="add"
-            onSubmit={(event) => {
-              event.preventDefault()
-              actions.addCuriosityItem(curiosity)
-              setCuriosity('')
-            }}
-          >
-            <input autoFocus value={curiosity} placeholder="＋ 想看的、想查的" onChange={(event) => setCuriosity(event.target.value)} />
-          </form>
-          <ul className="lines">
-            {openCuriosity.map((item) => (
-              <li key={item.id}>
-                <span className="ln-title">{item.text}</span>
-                <em className="ln-meta" />
-                <span className="row">
-                  <button type="button" className="link" onClick={() => actions.archiveCuriosityItem(item.id)}>
-                    消化
-                  </button>
-                  <button type="button" className="icon-btn" aria-label="删除" onClick={() => actions.removeCuriosityItem(item.id)}>
-                    ✕
-                  </button>
-                </span>
-              </li>
-            ))}
-            {openCuriosity.length === 0 ? <Empty>还没有记。</Empty> : null}
-          </ul>
-        </Modal>
-      ) : null}
+      {showCuriosity ? <CuriosityDialog life={life} revealed={cleared} onClose={() => setShowCuriosity(false)} /> : null}
     </>
   )
 }

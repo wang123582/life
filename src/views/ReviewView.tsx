@@ -10,23 +10,22 @@ import type { ReviewInput, StateType } from '../types'
 
 type HistoryFilter = 'all' | 'review' | 'focus' | 'difficulty' | 'notes'
 
-function emptyForm(review: ViewProps['life']['dayPlan']['review'], slots: number): ReviewInput {
+function emptyForm(review: ViewProps['life']['dayPlan']['review']): ReviewInput {
   return {
     wins: review?.wins ?? '',
     slips: review?.slips ?? '',
     commonState: review?.commonState ?? '',
-    tomorrow: review?.tomorrow ?? '',
-    tomorrowTop3: review?.tomorrowTop3 ?? Array(slots).fill(''),
-    tomorrowTop3Steps: review?.tomorrowTop3Steps ?? Array(slots).fill(''),
+    // 一天一件：数组保留是为了兼容老快照，界面上只写第 0 格。
+    tomorrowTop3: review?.tomorrowTop3 ?? [''],
+    tomorrowTop3Steps: review?.tomorrowTop3Steps ?? [''],
     moodScore: review?.moodScore,
   }
 }
 
 export function ReviewView({ life, runtime }: ViewProps) {
   const { data, dayKey, dayPlan, todayDifficultyRecords, todayFocusSessions, actions } = life
-  const slots = data.dailyTemplate.topTaskSlots
 
-  const [form, setForm] = useState<ReviewInput>(() => emptyForm(dayPlan.review, slots))
+  const [form, setForm] = useState<ReviewInput>(() => emptyForm(dayPlan.review))
   const [saving, setSaving] = useState(false)
   const [saveNote, setSaveNote] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [sending, setSending] = useState(false)
@@ -36,8 +35,8 @@ export function ReviewView({ life, runtime }: ViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
-    setForm(emptyForm(dayPlan.review, slots))
-  }, [dayPlan.review, slots])
+    setForm(emptyForm(dayPlan.review))
+  }, [dayPlan.review])
 
   const progress = useMemo(() => buildProgressSummary(data, 30), [data])
 
@@ -126,7 +125,8 @@ export function ReviewView({ life, runtime }: ViewProps) {
   const entry = timeline.find((item) => item.id === editingId)
   const difficulty = entry?.type === 'difficulty' ? todayDifficultyRecords.find((record) => record.id === editingId) : null
   const session = entry?.type === 'focus' ? todayFocusSessions.find((item) => item.id === editingId) : null
-  const anchors = dayPlan.todayItems.filter((item) => item.kind === 'normal').slice(0, data.dailyTemplate.topTaskSlots)
+  // 与今天页同一个口径：主线只算主动任务，维护类不进来（它们不计入完成率）。
+  const anchors = dayPlan.todayItems.filter((item) => item.kind === 'normal')
 
   return (
     <>
@@ -200,34 +200,20 @@ export function ReviewView({ life, runtime }: ViewProps) {
 
           <div className="stack">
             <span className="label">
-              明天这一件事<em>顺手写第一步，明早确认即用</em>
+              明天这一件事<em>连下一步一起写，明早确认即用</em>
             </span>
-            {Array.from({ length: slots }, (_, index) => index).map((index) => (
-              <div key={index} className="pair tight">
-                <input
-                  value={form.tomorrowTop3?.[index] ?? ''}
-                  placeholder="是什么"
-                  onChange={(event) =>
-                    setForm((prev) => {
-                      const next = [...(prev.tomorrowTop3 ?? ['', '', ''])]
-                      next[index] = event.target.value
-                      return { ...prev, tomorrowTop3: next }
-                    })
-                  }
-                />
-                <input
-                  value={form.tomorrowTop3Steps?.[index] ?? ''}
-                  placeholder="第一步（可选）"
-                  onChange={(event) =>
-                    setForm((prev) => {
-                      const next = [...(prev.tomorrowTop3Steps ?? ['', '', ''])]
-                      next[index] = event.target.value
-                      return { ...prev, tomorrowTop3Steps: next }
-                    })
-                  }
-                />
-              </div>
-            ))}
+            <div className="pair tight">
+              <input
+                value={form.tomorrowTop3?.[0] ?? ''}
+                placeholder="是什么"
+                onChange={(event) => setForm((prev) => ({ ...prev, tomorrowTop3: [event.target.value] }))}
+              />
+              <input
+                value={form.tomorrowTop3Steps?.[0] ?? ''}
+                placeholder="下一秒手放在哪"
+                onChange={(event) => setForm((prev) => ({ ...prev, tomorrowTop3Steps: [event.target.value] }))}
+              />
+            </div>
           </div>
 
           <button type="submit" className="btn primary" disabled={saving}>

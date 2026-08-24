@@ -99,9 +99,14 @@ function App() {
             <div className="body">
               <div className="banner warn">
                 <div>
-                  <b>回到你自己设的目标上</b>
-                  <span>{runtime.reminder}</span>
+                  <b>{runtime.reminder.itemId ? '到点了' : '回到你自己设的目标上'}</b>
+                  <span>{runtime.reminder.message}</span>
                 </div>
+                {runtime.reminder.itemId ? (
+                  <button type="button" className="btn primary sm" onClick={runtime.completeReminder}>
+                    做完了
+                  </button>
+                ) : null}
                 <button type="button" className="btn sm" onClick={runtime.dismissReminder}>
                   知道了
                 </button>

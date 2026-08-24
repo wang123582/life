@@ -21,6 +21,7 @@ export function notesToPlainText(html: string): string {
 export function buildDayReport(data: LifeAppData, dayKey: string): string {
   const plan = data.dayPlans[dayKey]
 
+  // 维护类不带步骤，所以这里汇总到的都是真正推进主线的步骤。
   const completedSteps = (plan?.todayItems ?? []).flatMap((item) =>
     item.steps
       .filter((step) => step.isDone)
@@ -37,8 +38,6 @@ export function buildDayReport(data: LifeAppData, dayKey: string): string {
     difficulties: data.difficultyRecords.filter((record) => record.dayKey === dayKey),
     focusSessions: data.focusSessions.filter((session) => session.dayKey === dayKey),
     commonStateLabel: getStateLabel(plan?.review?.commonState ?? ''),
-    communicationDone: plan?.communicationDone ?? false,
-    communicationNote: plan?.communicationNote ?? '',
     processNotes: notesToPlainText(plan?.processNotes ?? ''),
   })
 }

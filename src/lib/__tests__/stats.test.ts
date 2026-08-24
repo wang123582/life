@@ -12,9 +12,6 @@ function plan(dayKey: string, items: TodayItem[], hasReview = false): DayPlan {
   return {
     dayKey,
     todayItems: items,
-    avoidItems: [],
-    communicationDone: false,
-    communicationNote: '',
     processNotes: '',
     processNotesColor: '#1f2937',
     morningAnchorDone: true,

@@ -26,8 +26,6 @@ interface FeishuReportPayload {
   difficulties: DifficultyRecord[]
   focusSessions: FocusSession[]
   commonStateLabel?: string
-  communicationDone: boolean
-  communicationNote: string
   processNotes?: string
 }
 
@@ -168,13 +166,10 @@ export function buildReportPreviewText(payload: FeishuReportPayload): string {
 
   lines.push(`${dayjs(payload.dayKey).format('M 月 D 日')} 今天总结`)
   lines.push('')
-  lines.push(`交流：${payload.communicationDone ? '已完成' : '未完成'}${payload.communicationNote ? `｜${payload.communicationNote}` : ''}`)
-  lines.push('')
   lines.push('【今天总结】')
   lines.push(`完成了什么：${review?.wins || '还没写。'}`)
   lines.push(`失守了什么：${review?.slips || '还没写。'}`)
   lines.push(`最常见的状态：${payload.commonStateLabel || '还没选。'}`)
-  lines.push(`明天第一步：${review?.tomorrow || '还没写。'}`)
   buildReviewExtraLines(review).forEach((line) => lines.push(line))
   lines.push('')
   lines.push('【做完的步骤】')

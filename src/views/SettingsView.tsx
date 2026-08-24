@@ -13,7 +13,6 @@ export function SettingsView({ life, runtime }: ViewProps) {
 
   const [focusMinutes, setFocusMinutes] = useState(String(settings.focusMinutes))
   const [breakMinutes, setBreakMinutes] = useState(String(settings.breakMinutes))
-  const [relaxMinutes, setRelaxMinutes] = useState(String(data.dailyTemplate.relaxMinutes))
 
   const [blocked, setBlocked] = useState(settings.blockedTargets.join('\n'))
   const [spaceId, setSpaceId] = useState(settings.syncSpaceId)
@@ -31,9 +30,6 @@ export function SettingsView({ life, runtime }: ViewProps) {
   }, [settings.syncSpaceId, settings.syncDeviceName])
 
   const saveRhythm = () => {
-    actions.updateDailyTemplate({
-      relaxMinutes: Number(relaxMinutes) || data.dailyTemplate.relaxMinutes,
-    })
     actions.updateSettings({
       focusMinutes: Number(focusMinutes) || settings.focusMinutes,
       breakMinutes: Number(breakMinutes) || settings.breakMinutes,
@@ -102,16 +98,13 @@ export function SettingsView({ life, runtime }: ViewProps) {
           <Field label="休息（分）">
             <input value={breakMinutes} inputMode="numeric" onChange={(event) => setBreakMinutes(event.target.value)} />
           </Field>
-          <Field label="放松窗口（分）">
-            <input value={relaxMinutes} inputMode="numeric" onChange={(event) => setRelaxMinutes(event.target.value)} />
-          </Field>
         </div>
         <button type="button" className="btn sm" onClick={saveRhythm}>
           保存
         </button>
       </Section>
 
-      <Section title="提醒" desc="番茄结束、固定生活任务、晚间复盘、硬性收工，都从这里开关。">
+      <Section title="提醒" desc="番茄结束、生活到点、晚间复盘、硬性收工，都从这里开关。生活类只靠这些提醒推进，不在今天页占行。">
         <Toggle
           checked={settings.desktopNotificationsEnabled}
           disabled={!runtime.desktop.supported}

@@ -30,9 +30,6 @@ describe('M3 getNextDayAnchorPrefill', () => {
   const planWith = (dayKey: string, tomorrowTop3?: string[]): DayPlan => ({
     dayKey,
     todayItems: [],
-    avoidItems: [],
-    communicationDone: false,
-    communicationNote: '',
     processNotes: '',
     processNotesColor: '#1f2937',
     morningAnchorDone: false,

@@ -26,6 +26,9 @@ describe('App 渲染', () => {
 
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('今天')
     expect(screen.getByText('主线')).toBeTruthy()
-    expect(screen.getByText('边界')).toBeTruthy()
+    // 维护类（生活）不在今天页占行：它到点靠提醒推进
+    expect(screen.queryByText('生活')).toBeNull()
+    // 「边界」已删：不碰什么由任务池的长期规则红线承担
+    expect(screen.queryByText('边界')).toBeNull()
   })
 })

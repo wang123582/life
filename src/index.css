@@ -553,17 +553,8 @@ input[type='time'], input[type='date'] { font-variant-numeric: tabular-nums; }
 .gate h1 { font-family: var(--hand); font-size: 42px; font-weight: 600; line-height: 1.08; }
 .gate .lede { margin-bottom: 14px; }
 .gate .btn { justify-self: start; margin-top: 8px; }
-.gate-list { display: grid; gap: 2px; }
-.gate-list li { display: flex; align-items: flex-start; gap: 14px; }
-.gate-list li span {
-  width: 14px;
-  margin-top: 9px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink-3);
-}
-.gate-fields { display: grid; gap: 0; flex: 1; }
-.gate-list input { padding: 9px 0; font-family: var(--hand); font-size: 22px; line-height: var(--cell); }
+.gate-fields { display: grid; gap: 0; }
+.gate-fields input { padding: 9px 0; font-family: var(--hand); font-size: 22px; line-height: var(--cell); }
 .gate-fields input + input { font-size: 16px; color: var(--ink-2); border-top: 1px dashed var(--hair); }
 
 /* ---------- 主线任务行 ---------- */
@@ -666,11 +657,6 @@ input[type='time'], input[type='date'] { font-variant-numeric: tabular-nums; }
 }
 .chip:hover { border-color: var(--ink-3); color: var(--ink); }
 .chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); }
-.chip.held { border-color: var(--hair-2); background: transparent; color: var(--ink-3); text-decoration: line-through; }
-.chip em { font-family: var(--mono); font-style: normal; font-size: 11px; color: var(--ink-3); text-decoration: none; }
-
-.chip-input input { width: 130px; padding: 5px 0; font-size: 13px; border-bottom-color: transparent; }
-.chip-input input:hover, .chip-input input:focus { border-bottom-color: var(--hair); }
 
 .today-foot {
   display: flex;
